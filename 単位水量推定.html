@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="単水推定">
+<title>単位水量推定アプリ</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f2f2f7;color:#1c1c1e;min-height:100vh;padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);}
+
+/* タブバー */
+.tab-bar{display:flex;position:fixed;bottom:0;left:0;right:0;background:rgba(248,248,248,0.95);backdrop-filter:blur(20px);border-top:1px solid #e0e0e0;z-index:100;padding-bottom:env(safe-area-inset-bottom);}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 0 4px;border:none;background:none;cursor:pointer;font-size:10px;color:#8e8e93;gap:3px;transition:color .15s;}
+.tab-btn.active{color:#007aff;}
+.tab-btn svg{width:22px;height:22px;}
+.tab-content{display:none;padding-bottom:80px;}
+.tab-content.active{display:block;}
+
+/* ヘッダー */
+.header{padding:16px 16px 16px;color:white;text-align:center;}
+.header h1{font-size:22px;font-weight:700;letter-spacing:.5px;}
+.header p{font-size:12px;opacity:.8;margin-top:4px;}
+.header-standard{background:linear-gradient(135deg,#1a2f50,#2d4e80);}
+.header-summer{background:linear-gradient(135deg,#7a2a08,#c05510);}
+.header-winter{background:linear-gradient(135deg,#0c2d5e,#1a5a90);}
+.header-history{background:linear-gradient(135deg,#2d2d2d,#4a4a4a);}
+
+/* カード */
+.card{background:white;border-radius:16px;margin:12px 16px 0;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.card-label{font-size:11px;color:#8e8e93;font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:5px;}
+
+/* 季節・配合種別タブ */
+.chip-row{display:flex;gap:8px;overflow-x:auto;padding:0 0 4px;-ms-overflow-style:none;scrollbar-width:none;}
+.chip-row::-webkit-scrollbar{display:none;}
+.chip{padding:7px 16px;border-radius:20px;border:none;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;background:#f2f2f7;color:#1c1c1e;}
+.chip.active-std{background:#2d4e80;color:white;}
+.chip.active-sum{background:#c05510;color:white;}
+.chip.active-win{background:#1a5a90;color:white;}
+.chip.active-sand{background:#8c6440;color:white;}
+.chip.active-lime{background:#3d8c70;color:white;}
+.chip.active-hs30{background:#3358a0;color:white;}
+.chip.active-hs45{background:#8c3070;color:white;}
+
+/* セレクト */
+select{width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;font-size:16px;background:white;color:#1c1c1e;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238e8e93' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+
+/* 標準配合値 */
+.mix-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:#f2f2f7;border-radius:10px;overflow:hidden;}
+.mix-cell{background:white;padding:8px 4px;text-align:center;border:1px solid #f2f2f7;}
+.mix-cell .lbl{font-size:10px;font-weight:700;margin-bottom:2px;}
+.mix-cell .val{font-size:15px;font-weight:700;font-family:monospace;}
+.mix-cell .unit{font-size:8px;color:#8e8e93;}
+
+/* 入力フィールド */
+.field{margin-bottom:12px;}
+.field label{font-size:12px;font-weight:500;color:#8e8e93;display:block;margin-bottom:4px;}
+.field-row{display:flex;align-items:center;background:#f9f9f9;border:1px solid #e5e5e5;border-radius:10px;overflow:hidden;}
+.field-row input{flex:1;padding:11px 12px;border:none;background:transparent;font-size:17px;font-family:monospace;color:#1c1c1e;outline:none;}
+.field-row .unit-tag{padding:0 12px;color:#8e8e93;font-size:14px;white-space:nowrap;}
+
+/* エアーメーター選択 */
+.meter-selector{display:flex;align-items:center;gap:8px;}
+.meter-selector select{flex:1;}
+.icon-btn{padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+
+/* 結果カード */
+.result-section{margin-bottom:14px;}
+.result-header{display:flex;justify-content:space-between;align-items:flex-start;}
+.method-name{font-size:15px;font-weight:700;}
+.method-sub{font-size:10px;color:#8e8e93;margin-top:1px;}
+.result-val{font-size:28px;font-weight:700;font-family:monospace;text-align:right;}
+.result-val.sm{font-size:22px;}
+.badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;margin-top:3px;}
+.badge.pass{background:#e6f9ee;color:#1a8a3a;}
+.badge.fail{background:#feeaea;color:#c0392b;}
+.diff-text{font-size:11px;margin-top:3px;}
+.rho-text{font-size:11px;color:#8e8e93;margin-top:4px;font-family:monospace;}
+.avg-row{display:flex;justify-content:space-between;align-items:center;}
+.avg-val{font-size:32px;font-weight:800;font-family:monospace;}
+
+/* 保存ボタン */
+.save-btn{width:100%;padding:13px;border-radius:12px;border:none;font-size:16px;font-weight:600;color:white;cursor:pointer;margin-top:8px;transition:opacity .15s;}
+.save-btn:disabled{opacity:.4;cursor:default;}
+
+/* モーダル */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;}
+.modal-overlay.open{display:flex;}
+.modal{background:white;border-radius:20px 20px 0 0;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom));width:100%;max-height:90vh;overflow-y:auto;}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:16px;text-align:center;}
+.modal-actions{display:flex;gap:8px;margin-top:16px;}
+.btn-primary{flex:1;padding:12px;background:#007aff;color:white;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;}
+.btn-cancel{flex:1;padding:12px;background:#f2f2f7;color:#1c1c1e;border:none;border-radius:10px;font-size:16px;cursor:pointer;}
+.btn-danger{padding:10px 16px;background:#ff3b30;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;}
+
+/* フォーム */
+.form-row{margin-bottom:12px;}
+.form-row label{font-size:12px;color:#8e8e93;display:block;margin-bottom:4px;}
+.form-row input,.form-row textarea{width:100%;padding:11px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:16px;background:white;color:#1c1c1e;outline:none;}
+.form-row textarea{resize:vertical;min-height:72px;}
+.form-info{background:#f9f9f9;border-radius:10px;padding:12px;font-size:13px;}
+.form-info-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #ebebeb;}
+.form-info-row:last-child{border-bottom:none;}
+.form-info-row .lbl{color:#8e8e93;}
+.form-info-row .val{font-weight:500;}
+
+/* 履歴 */
+.history-list{padding:0;}
+.history-item{background:white;border-radius:12px;margin:8px 16px;padding:13px 16px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.07);cursor:pointer;}
+.history-left .date{font-size:12px;color:#8e8e93;}
+.history-left .mix-info{font-size:14px;font-weight:600;margin-top:2px;}
+.history-left .season-badge{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;margin-right:4px;background:#e8f0fe;color:#2d4e80;}
+.history-right .wval{font-size:20px;font-weight:700;font-family:monospace;text-align:right;}
+.history-right .hjudge{font-size:12px;font-weight:700;text-align:right;}
+.empty-state{text-align:center;padding:60px 20px;color:#8e8e93;}
+.empty-state svg{opacity:.4;margin-bottom:12px;}
+.empty-state p{font-size:14px;}
+
+/* エアーメーター管理 */
+.meter-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f2f2f7;}
+.meter-item:last-child{border-bottom:none;}
+.meter-info .name{font-size:15px;font-weight:600;}
+.meter-info .vals{font-size:12px;color:#8e8e93;font-family:monospace;margin-top:2px;}
+.meter-actions{display:flex;gap:6px;}
+
+/* iPad対応 */
+@media(min-width:768px){
+  .main-content{max-width:900px;margin:0 auto;}
+  .dual-col{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:start;}
+  .dual-col .left-col,.dual-col .right-col{min-height:0;}
+}
+
+.divider{height:1px;background:#f2f2f7;margin:12px 0;}
+.text-secondary{color:#8e8e93;}
+.mt-8{margin-top:8px;}
+</style>
+</head>
+<body>
+
+<!-- タブコンテンツ -->
+<div id="tab-calc" class="tab-content active">
+  <div class="main-content">
+    <!-- ヘッダー -->
+    <div id="calc-header" class="header header-standard">
+      <h1 id="header-title">単位水量推定（標準期）</h1>
+      <p id="header-sub">エアーメータ法（標準期配合）</p>
+    </div>
+
+    <div id="dual-wrapper">
+    <div class="dual-col">
+    <div class="left-col">
+
+    <!-- 季節選択 -->
+    <div class="card">
+      <div class="card-label">季節</div>
+      <div class="chip-row">
+        <button class="chip active-std" onclick="setSeason('standard',this)" class="chip active-std season-chip">標準期</button>
+        <button class="chip" onclick="setSeason('summer',this)" class="chip season-chip">夏期</button>
+        <button class="chip" onclick="setSeason('winter',this)" class="chip season-chip">冬期</button>
+      </div>
+    </div>
+
+    <!-- 配合種別 -->
+    <div class="card">
+      <div class="card-label">配合種別</div>
+      <div class="chip-row" id="mix-type-chips">
+        <button class="chip active-sand" onclick="setMixType('sandstone',this)">砂岩</button>
+        <button class="chip" onclick="setMixType('limestone',this)">石灰</button>
+        <button class="chip" onclick="setMixType('hs30',this)">高強度3.0%</button>
+        <button class="chip" onclick="setMixType('hs45',this)">高強度4.5%</button>
+      </div>
+    </div>
+
+    <!-- 配合№ -->
+    <div class="card">
+      <div class="card-label">配合№</div>
+      <select id="mix-id-select" onchange="onMixChange()"></select>
+    </div>
+
+    <!-- 標準配合値 -->
+    <div class="card" id="std-mix-card">
+      <div class="card-label">標準配合値</div>
+      <div class="mix-grid">
+        <div class="mix-cell"><div class="lbl" style="color:#3060c0">W₁</div><div class="val" id="sv-W">—</div><div class="unit">kg/m³</div></div>
+        <div class="mix-cell"><div class="lbl" style="color:#666">C</div><div class="val" id="sv-C">—</div><div class="unit">kg/m³</div></div>
+        <div class="mix-cell"><div class="lbl" style="color:#c07030">S</div><div class="val" id="sv-S">—</div><div class="unit">kg/m³</div></div>
+        <div class="mix-cell"><div class="lbl" style="color:#8b5e3c">G</div><div class="val" id="sv-G">—</div><div class="unit">kg/m³</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#8e8e93;margin-top:8px;">
+        <span id="sv-air"></span><span id="sv-cd"></span>
+      </div>
+    </div>
+
+    <!-- 測定値入力 -->
+    <div class="card">
+      <div class="card-label" style="justify-content:space-between">
+        <span>測定値入力</span>
+        <button onclick="openMeterMgr()" style="border:none;background:none;color:#007aff;font-size:12px;cursor:pointer;">⚙ エアーメーター管理</button>
+      </div>
+      <div class="field">
+        <label>エアーメーター</label>
+        <div class="meter-selector">
+          <select id="meter-select" onchange="onMeterChange()"><option value="">— 選択してください —</option></select>
+          <button class="icon-btn" onclick="openMeterMgr()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="field">
+        <label>試料＋エアーメータ　S₁</label>
+        <div class="field-row">
+          <input type="number" id="in-S1" step="0.001" placeholder="例: 25.635" oninput="calcDebounced()" inputmode="decimal">
+          <span class="unit-tag">kg</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>実測空気量</label>
+        <div class="field-row">
+          <input type="number" id="in-air" step="0.1" placeholder="例: 4.5" oninput="calcDebounced()" inputmode="decimal">
+          <span class="unit-tag">%</span>
+        </div>
+      </div>
+    </div>
+
+    </div><!-- left-col -->
+    <div class="right-col">
+
+    <!-- 計算結果 -->
+    <div class="card">
+      <div class="card-label">推定単位水量</div>
+
+      <!-- 土研法 -->
+      <div class="result-section">
+        <div class="result-header">
+          <div><div class="method-name">土研法</div><div class="method-sub">W = W₁ + (ρ₁ - ρ₂) × 0.7</div></div>
+          <div style="text-align:right">
+            <div class="result-val sm" id="res-doken">—</div>
+            <span id="badge-doken"></span>
+          </div>
+        </div>
+        <div class="rho-text" id="rho-text"></div>
+        <div class="diff-text" id="diff-doken"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- 福井式 -->
+      <div class="result-section">
+        <div class="result-header">
+          <div><div class="method-name">福井式</div><div class="method-sub">エアーメータ法（福井工組）</div></div>
+          <div style="text-align:right">
+            <div class="result-val sm" id="res-fukui">—</div>
+            <span id="badge-fukui"></span>
+          </div>
+        </div>
+        <div class="diff-text" id="diff-fukui"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- 平均値 -->
+      <div class="avg-row">
+        <div>
+          <div class="method-name">平均値</div>
+          <div class="method-sub">（土研法＋福井式）÷ 2</div>
+        </div>
+        <div style="text-align:right">
+          <div class="avg-val" id="res-avg">—</div>
+          <span id="badge-avg"></span>
+        </div>
+      </div>
+
+      <!-- 保存ボタン -->
+      <button class="save-btn" id="save-btn" disabled onclick="openSaveModal()">📋 採取記録を保存</button>
+    </div>
+
+    </div><!-- right-col -->
+    </div><!-- dual-col -->
+    </div><!-- dual-wrapper -->
+  </div>
+</div>
+
+<!-- 履歴タブ -->
+<div id="tab-history" class="tab-content">
+  <div class="main-content">
+    <div class="header header-history">
+      <h1>採取履歴</h1>
+      <p>保存した測定記録</p>
+    </div>
+    <div id="history-list"></div>
+  </div>
+</div>
+
+<!-- タブバー -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('calc',this)" id="tabBtn-calc">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    計算
+  </button>
+  <button class="tab-btn" onclick="switchTab('history',this)" id="tabBtn-history">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    履歴
+  </button>
+</div>
+
+<!-- 保存モーダル -->
+<div class="modal-overlay" id="save-modal">
+  <div class="modal">
+    <div class="modal-title">採取記録を保存</div>
+    <div class="form-row">
+      <label>採取日時</label>
+      <input type="datetime-local" id="save-date">
+    </div>
+    <div class="form-info" id="save-info"></div>
+    <div class="form-row mt-8">
+      <label>メモ（任意）</label>
+      <textarea id="save-note" placeholder="自由記入"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeSaveModal()">キャンセル</button>
+      <button class="btn-primary" onclick="saveRecord()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- エアーメーター管理モーダル -->
+<div class="modal-overlay" id="meter-modal">
+  <div class="modal">
+    <div class="modal-title">エアーメーター管理</div>
+    <div id="meter-list"></div>
+    <button class="btn-primary mt-8" onclick="openAddMeter()" style="width:100%;margin-top:12px;">＋ 新規登録</button>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeMeterMgr()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- エアーメーター追加/編集モーダル -->
+<div class="modal-overlay" id="meter-edit-modal">
+  <div class="modal">
+    <div class="modal-title" id="meter-edit-title">エアーメーター登録</div>
+    <input type="hidden" id="meter-edit-id">
+    <div class="form-row">
+      <label>名前（例: №1、赤ハンドル）</label>
+      <input type="text" id="meter-edit-name" placeholder="例: №1">
+    </div>
+    <div class="form-row">
+      <label>質量 S₂ (kg)</label>
+      <input type="number" id="meter-edit-s2" step="0.001" placeholder="例: 7.001" inputmode="decimal">
+    </div>
+    <div class="form-row">
+      <label>容積 V₃ (L)</label>
+      <input type="number" id="meter-edit-v3" step="0.001" placeholder="例: 7.000" inputmode="decimal">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeMeterEdit()">キャンセル</button>
+      <button class="btn-primary" onclick="saveMeter()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 履歴詳細モーダル -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal">
+    <div class="modal-title">記録の詳細</div>
+    <div id="detail-content"></div>
+    <div class="modal-actions">
+      <button class="btn-danger" onclick="deleteRecord()">削除</button>
+      <button class="btn-cancel" onclick="closeDetail()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 同期状態インジケーター -->
+<div id="sync-indicator" style="position:fixed;top:0;left:0;right:0;background:#ffc107;color:#5c4400;font-size:12px;text-align:center;padding:4px;padding-top:calc(4px + env(safe-area-inset-top));z-index:300;display:none;">
+  ⚠ オフライン中（データは端末内に保存されます）
+</div>
+
+<script>
+const MIX_DB = {"standard": {"sandstone": [{"id": "1808", "st": 18, "sl": 8, "W": 167.0, "C": 252.0, "S1": 858.0, "G": 1013.0, "cd": 3.16}, {"id": "1810", "st": 18, "sl": 10, "W": 170.0, "C": 256.0, "S1": 863.0, "G": 997.0, "cd": 3.16}, {"id": "1812", "st": 18, "sl": 12, "W": 173.0, "C": 261.0, "S1": 881.0, "G": 965.0, "cd": 3.16}, {"id": "1815", "st": 18, "sl": 15, "W": 178.0, "C": 268.0, "S1": 902.0, "G": 925.0, "cd": 3.16}, {"id": "1818", "st": 18, "sl": 18, "W": 183.0, "C": 276.0, "S1": 926.0, "G": 882.0, "cd": 3.16}, {"id": "2108", "st": 21, "sl": 8, "W": 167.0, "C": 270.0, "S1": 845.0, "G": 1013.0, "cd": 3.16}, {"id": "2110", "st": 21, "sl": 10, "W": 170.0, "C": 275.0, "S1": 848.0, "G": 997.0, "cd": 3.16}, {"id": "2112", "st": 21, "sl": 12, "W": 173.0, "C": 279.0, "S1": 868.0, "G": 965.0, "cd": 3.16}, {"id": "2115", "st": 21, "sl": 15, "W": 178.0, "C": 287.0, "S1": 887.0, "G": 925.0, "cd": 3.16}, {"id": "2118", "st": 21, "sl": 18, "W": 183.0, "C": 296.0, "S1": 907.0, "G": 882.0, "cd": 3.16}, {"id": "2121", "st": 21, "sl": 21, "W": 189.0, "C": 305.0, "S1": 915.0, "G": 850.0, "cd": 3.16}, {"id": "2408", "st": 24, "sl": 8, "W": 167.0, "C": 296.0, "S1": 822.0, "G": 1013.0, "cd": 3.16}, {"id": "2410", "st": 24, "sl": 10, "W": 170.0, "C": 301.0, "S1": 827.0, "G": 997.0, "cd": 3.16}, {"id": "2412", "st": 24, "sl": 12, "W": 173.0, "C": 307.0, "S1": 845.0, "G": 965.0, "cd": 3.16}, {"id": "2415", "st": 24, "sl": 15, "W": 178.0, "C": 315.0, "S1": 863.0, "G": 925.0, "cd": 3.16}, {"id": "2418", "st": 24, "sl": 18, "W": 183.0, "C": 324.0, "S1": 884.0, "G": 882.0, "cd": 3.16}, {"id": "2421", "st": 24, "sl": 21, "W": 189.0, "C": 335.0, "S1": 892.0, "G": 850.0, "cd": 3.16}, {"id": "2708", "st": 27, "sl": 8, "W": 167.0, "C": 315.0, "S1": 806.0, "G": 1013.0, "cd": 3.16}, {"id": "2710", "st": 27, "sl": 10, "W": 170.0, "C": 321.0, "S1": 809.0, "G": 997.0, "cd": 3.16}, {"id": "2712", "st": 27, "sl": 12, "W": 173.0, "C": 327.0, "S1": 829.0, "G": 965.0, "cd": 3.16}, {"id": "2715", "st": 27, "sl": 15, "W": 178.0, "C": 336.0, "S1": 848.0, "G": 925.0, "cd": 3.16}, {"id": "2718", "st": 27, "sl": 18, "W": 183.0, "C": 346.0, "S1": 868.0, "G": 882.0, "cd": 3.16}, {"id": "2721", "st": 27, "sl": 21, "W": 189.0, "C": 357.0, "S1": 874.0, "G": 850.0, "cd": 3.16}, {"id": "3008", "st": 30, "sl": 8, "W": 170.0, "C": 347.0, "S1": 757.0, "G": 1029.0, "cd": 3.16}, {"id": "3010", "st": 30, "sl": 10, "W": 173.0, "C": 353.0, "S1": 759.0, "G": 1013.0, "cd": 3.16}, {"id": "3012", "st": 30, "sl": 12, "W": 176.0, "C": 360.0, "S1": 777.0, "G": 981.0, "cd": 3.16}, {"id": "3015", "st": 30, "sl": 15, "W": 181.0, "C": 370.0, "S1": 796.0, "G": 941.0, "cd": 3.16}, {"id": "3018", "st": 30, "sl": 18, "W": 186.0, "C": 380.0, "S1": 814.0, "G": 900.0, "cd": 3.16}, {"id": "3021", "st": 30, "sl": 21, "W": 192.0, "C": 392.0, "S1": 822.0, "G": 866.0, "cd": 3.16}, {"id": "3308", "st": 33, "sl": 8, "W": 173.0, "C": 372.0, "S1": 712.0, "G": 1045.0, "cd": 3.16}, {"id": "3310", "st": 33, "sl": 10, "W": 176.0, "C": 379.0, "S1": 715.0, "G": 1029.0, "cd": 3.16}, {"id": "3312", "st": 33, "sl": 12, "W": 179.0, "C": 385.0, "S1": 733.0, "G": 997.0, "cd": 3.16}, {"id": "3315", "st": 33, "sl": 15, "W": 184.0, "C": 396.0, "S1": 751.0, "G": 957.0, "cd": 3.16}, {"id": "3318", "st": 33, "sl": 18, "W": 189.0, "C": 407.0, "S1": 767.0, "G": 917.0, "cd": 3.16}, {"id": "3321", "st": 33, "sl": 21, "W": 195.0, "C": 420.0, "S1": 775.0, "G": 882.0, "cd": 3.16}, {"id": "3608", "st": 36, "sl": 8, "W": 176.0, "C": 400.0, "S1": 663.0, "G": 1064.0, "cd": 3.16}, {"id": "3610", "st": 36, "sl": 10, "W": 179.0, "C": 407.0, "S1": 668.0, "G": 1045.0, "cd": 3.16}, {"id": "3612", "st": 36, "sl": 12, "W": 182.0, "C": 414.0, "S1": 686.0, "G": 1013.0, "cd": 3.16}, {"id": "3615", "st": 36, "sl": 15, "W": 187.0, "C": 425.0, "S1": 705.0, "G": 973.0, "cd": 3.16}, {"id": "3618", "st": 36, "sl": 18, "W": 192.0, "C": 437.0, "S1": 720.0, "G": 933.0, "cd": 3.16}, {"id": "3621", "st": 36, "sl": 21, "W": 198.0, "C": 450.0, "S1": 725.0, "G": 900.0, "cd": 3.16}, {"id": "2418SPC", "st": 24, "sl": 18, "W": 172.0, "C": 305.0, "S1": 928.0, "G": 882.0, "cd": 3.16}, {"id": "2421SPC", "st": 24, "sl": 21, "W": 175.0, "C": 310.0, "S1": 949.0, "G": 850.0, "cd": 3.16}, {"id": "2715SPC", "st": 27, "sl": 15, "W": 169.0, "C": 319.0, "S1": 884.0, "G": 925.0, "cd": 3.16}, {"id": "2718SPC", "st": 27, "sl": 18, "W": 172.0, "C": 325.0, "S1": 913.0, "G": 882.0, "cd": 3.16}, {"id": "2721SPC", "st": 27, "sl": 21, "W": 175.0, "C": 331.0, "S1": 931.0, "G": 850.0, "cd": 3.16}, {"id": "3015SPC", "st": 30, "sl": 15, "W": 169.0, "C": 345.0, "S1": 848.0, "G": 941.0, "cd": 3.16}, {"id": "3018SPC", "st": 30, "sl": 18, "W": 172.0, "C": 351.0, "S1": 874.0, "G": 900.0, "cd": 3.16}, {"id": "3021SPC", "st": 30, "sl": 21, "W": 175.0, "C": 358.0, "S1": 894.0, "G": 866.0, "cd": 3.16}, {"id": "3315SPC", "st": 33, "sl": 15, "W": 169.0, "C": 364.0, "S1": 816.0, "G": 957.0, "cd": 3.16}, {"id": "3318SPC", "st": 33, "sl": 18, "W": 172.0, "C": 370.0, "S1": 842.0, "G": 917.0, "cd": 3.16}, {"id": "3321SPC", "st": 33, "sl": 21, "W": 175.0, "C": 377.0, "S1": 863.0, "G": 882.0, "cd": 3.16}, {"id": "3615SPC", "st": 36, "sl": 15, "W": 169.0, "C": 384.0, "S1": 783.0, "G": 973.0, "cd": 3.16}, {"id": "3618SPC", "st": 36, "sl": 18, "W": 172.0, "C": 391.0, "S1": 809.0, "G": 933.0, "cd": 3.16}, {"id": "3621SPC", "st": 36, "sl": 21, "W": 175.0, "C": 398.0, "S1": 827.0, "G": 900.0, "cd": 3.16}, {"id": "4015SPC", "st": 40, "sl": 15, "W": 169.0, "C": 408.0, "S1": 764.0, "G": 973.0, "cd": 3.16}, {"id": "4018SPC", "st": 40, "sl": 18, "W": 172.0, "C": 415.0, "S1": 790.0, "G": 933.0, "cd": 3.16}, {"id": "4021SPC", "st": 40, "sl": 21, "W": 175.0, "C": 422.0, "S1": 806.0, "G": 900.0, "cd": 3.16}, {"id": "4215SPC", "st": 42, "sl": 15, "W": 169.0, "C": 428.0, "S1": 733.0, "G": 989.0, "cd": 3.16}, {"id": "4218SPC", "st": 42, "sl": 18, "W": 172.0, "C": 436.0, "S1": 757.0, "G": 949.0, "cd": 3.16}, {"id": "4221SPC", "st": 42, "sl": 21, "W": 175.0, "C": 443.0, "S1": 775.0, "G": 917.0, "cd": 3.16}, {"id": "4515SPC", "st": 45, "sl": 15, "W": 169.0, "C": 451.0, "S1": 712.0, "G": 989.0, "cd": 3.16}, {"id": "4518SPC", "st": 45, "sl": 18, "W": 172.0, "C": 459.0, "S1": 738.0, "G": 949.0, "cd": 3.16}, {"id": "4521SPC", "st": 45, "sl": 21, "W": 175.0, "C": 467.0, "S1": 754.0, "G": 917.0, "cd": 3.16}, {"id": "BB1808", "st": 18, "sl": 8, "W": 165.0, "C": 250.0, "S1": 858.0, "G": 1013.0, "cd": 3.04}, {"id": "BB1810", "st": 18, "sl": 10, "W": 168.0, "C": 255.0, "S1": 861.0, "G": 997.0, "cd": 3.04}, {"id": "BB1812", "st": 18, "sl": 12, "W": 171.0, "C": 259.0, "S1": 881.0, "G": 965.0, "cd": 3.04}, {"id": "BB1815", "st": 18, "sl": 15, "W": 176.0, "C": 267.0, "S1": 900.0, "G": 925.0, "cd": 3.04}, {"id": "BB1818", "st": 18, "sl": 18, "W": 181.0, "C": 275.0, "S1": 923.0, "G": 882.0, "cd": 3.04}, {"id": "BB2108", "st": 21, "sl": 8, "W": 165.0, "C": 269.0, "S1": 842.0, "G": 1013.0, "cd": 3.04}, {"id": "BB2110", "st": 21, "sl": 10, "W": 168.0, "C": 274.0, "S1": 845.0, "G": 997.0, "cd": 3.04}, {"id": "BB2112", "st": 21, "sl": 12, "W": 171.0, "C": 278.0, "S1": 866.0, "G": 965.0, "cd": 3.04}, {"id": "BB2115", "st": 21, "sl": 15, "W": 176.0, "C": 287.0, "S1": 884.0, "G": 925.0, "cd": 3.04}, {"id": "BB2118", "st": 21, "sl": 18, "W": 181.0, "C": 295.0, "S1": 905.0, "G": 882.0, "cd": 3.04}, {"id": "BB2408", "st": 24, "sl": 8, "W": 165.0, "C": 295.0, "S1": 819.0, "G": 1013.0, "cd": 3.04}, {"id": "BB2410", "st": 24, "sl": 10, "W": 168.0, "C": 300.0, "S1": 822.0, "G": 997.0, "cd": 3.04}, {"id": "BB2412", "st": 24, "sl": 12, "W": 171.0, "C": 306.0, "S1": 840.0, "G": 965.0, "cd": 3.04}, {"id": "BB2415", "st": 24, "sl": 15, "W": 176.0, "C": 315.0, "S1": 858.0, "G": 925.0, "cd": 3.04}, {"id": "BB2418", "st": 24, "sl": 18, "W": 181.0, "C": 324.0, "S1": 879.0, "G": 882.0, "cd": 3.04}, {"id": "BB2708", "st": 27, "sl": 8, "W": 165.0, "C": 315.0, "S1": 801.0, "G": 1013.0, "cd": 3.04}, {"id": "BB2710", "st": 27, "sl": 10, "W": 168.0, "C": 320.0, "S1": 806.0, "G": 997.0, "cd": 3.04}, {"id": "BB2712", "st": 27, "sl": 12, "W": 171.0, "C": 326.0, "S1": 824.0, "G": 965.0, "cd": 3.04}, {"id": "BB2715", "st": 27, "sl": 15, "W": 176.0, "C": 336.0, "S1": 840.0, "G": 925.0, "cd": 3.04}, {"id": "BB2718", "st": 27, "sl": 18, "W": 181.0, "C": 345.0, "S1": 863.0, "G": 882.0, "cd": 3.04}], "limestone": [{"id": "1808", "st": 18, "sl": 8, "W": 164.0, "C": 245.0, "S1": 871.0, "G": 1021.0, "cd": 3.16}, {"id": "1810", "st": 18, "sl": 10, "W": 167.0, "C": 250.0, "S1": 876.0, "G": 1004.0, "cd": 3.16}, {"id": "1812", "st": 18, "sl": 12, "W": 170.0, "C": 254.0, "S1": 897.0, "G": 972.0, "cd": 3.16}, {"id": "1815", "st": 18, "sl": 15, "W": 175.0, "C": 262.0, "S1": 915.0, "G": 932.0, "cd": 3.16}, {"id": "1818", "st": 18, "sl": 18, "W": 180.0, "C": 269.0, "S1": 939.0, "G": 888.0, "cd": 3.16}, {"id": "2108", "st": 21, "sl": 8, "W": 164.0, "C": 263.0, "S1": 858.0, "G": 1021.0, "cd": 3.16}, {"id": "2110", "st": 21, "sl": 10, "W": 167.0, "C": 268.0, "S1": 861.0, "G": 1004.0, "cd": 3.16}, {"id": "2112", "st": 21, "sl": 12, "W": 170.0, "C": 272.0, "S1": 881.0, "G": 972.0, "cd": 3.16}, {"id": "2115", "st": 21, "sl": 15, "W": 175.0, "C": 280.0, "S1": 900.0, "G": 932.0, "cd": 3.16}, {"id": "2118", "st": 21, "sl": 18, "W": 180.0, "C": 288.0, "S1": 923.0, "G": 888.0, "cd": 3.16}, {"id": "2121", "st": 21, "sl": 21, "W": 186.0, "C": 298.0, "S1": 931.0, "G": 856.0, "cd": 3.16}, {"id": "2408", "st": 24, "sl": 8, "W": 164.0, "C": 288.0, "S1": 837.0, "G": 1021.0, "cd": 3.16}, {"id": "2410", "st": 24, "sl": 10, "W": 167.0, "C": 293.0, "S1": 840.0, "G": 1004.0, "cd": 3.16}, {"id": "2412", "st": 24, "sl": 12, "W": 170.0, "C": 299.0, "S1": 858.0, "G": 972.0, "cd": 3.16}, {"id": "2415", "st": 24, "sl": 15, "W": 175.0, "C": 307.0, "S1": 879.0, "G": 932.0, "cd": 3.16}, {"id": "2418", "st": 24, "sl": 18, "W": 180.0, "C": 316.0, "S1": 900.0, "G": 888.0, "cd": 3.16}, {"id": "2421", "st": 24, "sl": 21, "W": 186.0, "C": 327.0, "S1": 907.0, "G": 856.0, "cd": 3.16}, {"id": "2708", "st": 27, "sl": 8, "W": 164.0, "C": 307.0, "S1": 822.0, "G": 1021.0, "cd": 3.16}, {"id": "2710", "st": 27, "sl": 10, "W": 167.0, "C": 313.0, "S1": 824.0, "G": 1004.0, "cd": 3.16}, {"id": "2712", "st": 27, "sl": 12, "W": 170.0, "C": 318.0, "S1": 842.0, "G": 972.0, "cd": 3.16}, {"id": "2715", "st": 27, "sl": 15, "W": 175.0, "C": 328.0, "S1": 861.0, "G": 932.0, "cd": 3.16}, {"id": "2718", "st": 27, "sl": 18, "W": 180.0, "C": 337.0, "S1": 881.0, "G": 888.0, "cd": 3.16}, {"id": "2721", "st": 27, "sl": 21, "W": 186.0, "C": 348.0, "S1": 889.0, "G": 856.0, "cd": 3.16}, {"id": "3008", "st": 30, "sl": 8, "W": 167.0, "C": 338.0, "S1": 772.0, "G": 1037.0, "cd": 3.16}, {"id": "3010", "st": 30, "sl": 10, "W": 170.0, "C": 344.0, "S1": 775.0, "G": 1021.0, "cd": 3.16}, {"id": "3012", "st": 30, "sl": 12, "W": 173.0, "C": 350.0, "S1": 793.0, "G": 988.0, "cd": 3.16}, {"id": "3015", "st": 30, "sl": 15, "W": 178.0, "C": 360.0, "S1": 811.0, "G": 948.0, "cd": 3.16}, {"id": "3018", "st": 30, "sl": 18, "W": 183.0, "C": 370.0, "S1": 829.0, "G": 907.0, "cd": 3.16}, {"id": "3021", "st": 30, "sl": 21, "W": 189.0, "C": 382.0, "S1": 837.0, "G": 872.0, "cd": 3.16}, {"id": "3308", "st": 33, "sl": 8, "W": 170.0, "C": 362.0, "S1": 728.0, "G": 1053.0, "cd": 3.16}, {"id": "3310", "st": 33, "sl": 10, "W": 173.0, "C": 368.0, "S1": 733.0, "G": 1037.0, "cd": 3.16}, {"id": "3312", "st": 33, "sl": 12, "W": 176.0, "C": 375.0, "S1": 749.0, "G": 1004.0, "cd": 3.16}, {"id": "3315", "st": 33, "sl": 15, "W": 181.0, "C": 386.0, "S1": 767.0, "G": 964.0, "cd": 3.16}, {"id": "3318", "st": 33, "sl": 18, "W": 186.0, "C": 396.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "3321", "st": 33, "sl": 21, "W": 192.0, "C": 409.0, "S1": 793.0, "G": 888.0, "cd": 3.16}, {"id": "3608", "st": 36, "sl": 8, "W": 173.0, "C": 389.0, "S1": 681.0, "G": 1072.0, "cd": 3.16}, {"id": "3610", "st": 36, "sl": 10, "W": 176.0, "C": 396.0, "S1": 686.0, "G": 1053.0, "cd": 3.16}, {"id": "3612", "st": 36, "sl": 12, "W": 179.0, "C": 403.0, "S1": 702.0, "G": 1021.0, "cd": 3.16}, {"id": "3615", "st": 36, "sl": 15, "W": 184.0, "C": 414.0, "S1": 720.0, "G": 980.0, "cd": 3.16}, {"id": "3618", "st": 36, "sl": 18, "W": 189.0, "C": 425.0, "S1": 738.0, "G": 940.0, "cd": 3.16}, {"id": "3621", "st": 36, "sl": 21, "W": 195.0, "C": 439.0, "S1": 741.0, "G": 907.0, "cd": 3.16}, {"id": "2418SPC", "st": 24, "sl": 18, "W": 172.0, "C": 302.0, "S1": 931.0, "G": 888.0, "cd": 3.16}, {"id": "2421SPC", "st": 24, "sl": 21, "W": 175.0, "C": 307.0, "S1": 952.0, "G": 856.0, "cd": 3.16}, {"id": "2715SPC", "st": 27, "sl": 15, "W": 169.0, "C": 316.0, "S1": 887.0, "G": 932.0, "cd": 3.16}, {"id": "2718SPC", "st": 27, "sl": 18, "W": 172.0, "C": 322.0, "S1": 915.0, "G": 888.0, "cd": 3.16}, {"id": "2721SPC", "st": 27, "sl": 21, "W": 175.0, "C": 328.0, "S1": 933.0, "G": 856.0, "cd": 3.16}, {"id": "3015SPC", "st": 30, "sl": 15, "W": 169.0, "C": 342.0, "S1": 850.0, "G": 948.0, "cd": 3.16}, {"id": "3018SPC", "st": 30, "sl": 18, "W": 172.0, "C": 348.0, "S1": 876.0, "G": 907.0, "cd": 3.16}, {"id": "3021SPC", "st": 30, "sl": 21, "W": 175.0, "C": 354.0, "S1": 897.0, "G": 872.0, "cd": 3.16}, {"id": "3315SPC", "st": 33, "sl": 15, "W": 169.0, "C": 360.0, "S1": 819.0, "G": 964.0, "cd": 3.16}, {"id": "3318SPC", "st": 33, "sl": 18, "W": 172.0, "C": 366.0, "S1": 845.0, "G": 923.0, "cd": 3.16}, {"id": "3321SPC", "st": 33, "sl": 21, "W": 175.0, "C": 373.0, "S1": 866.0, "G": 888.0, "cd": 3.16}, {"id": "3615SPC", "st": 36, "sl": 15, "W": 169.0, "C": 380.0, "S1": 788.0, "G": 980.0, "cd": 3.16}, {"id": "3618SPC", "st": 36, "sl": 18, "W": 172.0, "C": 387.0, "S1": 814.0, "G": 940.0, "cd": 3.16}, {"id": "3621SPC", "st": 36, "sl": 21, "W": 175.0, "C": 394.0, "S1": 829.0, "G": 907.0, "cd": 3.16}, {"id": "4015SPC", "st": 40, "sl": 15, "W": 169.0, "C": 403.0, "S1": 767.0, "G": 980.0, "cd": 3.16}, {"id": "4018SPC", "st": 40, "sl": 18, "W": 172.0, "C": 410.0, "S1": 793.0, "G": 940.0, "cd": 3.16}, {"id": "4021SPC", "st": 40, "sl": 21, "W": 175.0, "C": 417.0, "S1": 811.0, "G": 907.0, "cd": 3.16}, {"id": "4215SPC", "st": 42, "sl": 15, "W": 169.0, "C": 423.0, "S1": 751.0, "G": 980.0, "cd": 3.16}, {"id": "4218SPC", "st": 42, "sl": 18, "W": 172.0, "C": 430.0, "S1": 777.0, "G": 940.0, "cd": 3.16}, {"id": "4221SPC", "st": 42, "sl": 21, "W": 175.0, "C": 438.0, "S1": 793.0, "G": 907.0, "cd": 3.16}, {"id": "4515SPC", "st": 45, "sl": 15, "W": 169.0, "C": 445.0, "S1": 718.0, "G": 996.0, "cd": 3.16}, {"id": "4518SPC", "st": 45, "sl": 18, "W": 172.0, "C": 453.0, "S1": 744.0, "G": 956.0, "cd": 3.16}, {"id": "4521SPC", "st": 45, "sl": 21, "W": 175.0, "C": 461.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "BB1808", "st": 18, "sl": 8, "W": 162.0, "C": 244.0, "S1": 871.0, "G": 1021.0, "cd": 3.04}, {"id": "BB1810", "st": 18, "sl": 10, "W": 165.0, "C": 249.0, "S1": 874.0, "G": 1004.0, "cd": 3.04}, {"id": "BB1812", "st": 18, "sl": 12, "W": 168.0, "C": 253.0, "S1": 894.0, "G": 972.0, "cd": 3.04}, {"id": "BB1815", "st": 18, "sl": 15, "W": 173.0, "C": 261.0, "S1": 913.0, "G": 932.0, "cd": 3.04}, {"id": "BB1818", "st": 18, "sl": 18, "W": 178.0, "C": 268.0, "S1": 936.0, "G": 888.0, "cd": 3.04}, {"id": "BB2108", "st": 21, "sl": 8, "W": 162.0, "C": 262.0, "S1": 855.0, "G": 1021.0, "cd": 3.04}, {"id": "BB2110", "st": 21, "sl": 10, "W": 165.0, "C": 267.0, "S1": 858.0, "G": 1004.0, "cd": 3.04}, {"id": "BB2112", "st": 21, "sl": 12, "W": 168.0, "C": 271.0, "S1": 879.0, "G": 972.0, "cd": 3.04}, {"id": "BB2115", "st": 21, "sl": 15, "W": 173.0, "C": 279.0, "S1": 897.0, "G": 932.0, "cd": 3.04}, {"id": "BB2118", "st": 21, "sl": 18, "W": 178.0, "C": 287.0, "S1": 920.0, "G": 888.0, "cd": 3.04}, {"id": "BB2408", "st": 24, "sl": 8, "W": 162.0, "C": 287.0, "S1": 835.0, "G": 1021.0, "cd": 3.04}, {"id": "BB2410", "st": 24, "sl": 10, "W": 165.0, "C": 292.0, "S1": 837.0, "G": 1004.0, "cd": 3.04}, {"id": "BB2412", "st": 24, "sl": 12, "W": 168.0, "C": 298.0, "S1": 855.0, "G": 972.0, "cd": 3.04}, {"id": "BB2415", "st": 24, "sl": 15, "W": 173.0, "C": 307.0, "S1": 874.0, "G": 932.0, "cd": 3.04}, {"id": "BB2418", "st": 24, "sl": 18, "W": 178.0, "C": 315.0, "S1": 894.0, "G": 888.0, "cd": 3.04}, {"id": "BB2708", "st": 27, "sl": 8, "W": 162.0, "C": 306.0, "S1": 816.0, "G": 1021.0, "cd": 3.04}, {"id": "BB2710", "st": 27, "sl": 10, "W": 165.0, "C": 312.0, "S1": 819.0, "G": 1004.0, "cd": 3.04}, {"id": "BB2712", "st": 27, "sl": 12, "W": 168.0, "C": 317.0, "S1": 840.0, "G": 972.0, "cd": 3.04}, {"id": "BB2715", "st": 27, "sl": 15, "W": 173.0, "C": 327.0, "S1": 855.0, "G": 932.0, "cd": 3.04}, {"id": "BB2718", "st": 27, "sl": 18, "W": 178.0, "C": 336.0, "S1": 876.0, "G": 888.0, "cd": 3.04}], "hs30": [{"id": "4621", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4623", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4645", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4650", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4655", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4660", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4721", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4723", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4745", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4750", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4755", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4760", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4821", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4823", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4845", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4850", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4855", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4860", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4921", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4923", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4945", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4950", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4955", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4960", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "5021", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5023", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5045", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5050", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5055", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5060", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5121", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5123", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5145", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5150", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5155", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5160", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5221", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5223", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5245", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5250", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5255", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5260", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5321", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5323", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5345", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5350", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5355", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5360", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5365", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5421", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5423", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5445", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5450", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5455", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5460", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5465", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5621", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5623", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5645", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5650", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5655", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5660", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5665", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5721", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5723", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5745", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5750", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5755", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5760", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5765", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5821", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5823", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5845", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5850", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5855", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5860", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5865", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5921", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5923", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5945", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5950", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5955", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5960", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5965", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "6021", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6023", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6045", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6050", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6055", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6060", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6065", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6121", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6123", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6145", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6150", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6155", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6160", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6165", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6221", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6223", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6245", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6250", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6255", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6260", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6265", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6321", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6323", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6345", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6350", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6355", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6360", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6521", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6523", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6545", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6550", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6555", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6560", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6565", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6621", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6623", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6645", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6650", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6655", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6660", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6665", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6821", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6823", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6845", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6850", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6855", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6860", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6865", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "7121", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7123", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7145", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7150", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7155", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7160", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7165", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "4621Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4623Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4645Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4650Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4655Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4660Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4821Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4823Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4845Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4850Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4855Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4860Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "5121Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5123Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5145Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5150Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5155Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5160Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5165Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5321Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5323Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5345Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5350Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5355Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5360Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5365Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5421Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5423Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5445Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5450Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5455Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5460Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5465Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5721Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5723Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5745Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5750Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5755Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5760Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5765Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}], "hs45": [{"id": "4621", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4623", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4645", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4650", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4655", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4660", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4721", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4723", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4745", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4750", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4755", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4760", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4821", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4823", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4845", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4850", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4855", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4860", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4921", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4923", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4945", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4950", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4955", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4960", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "5021", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5023", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5045", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5050", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5055", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5060", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5121", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5123", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5145", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5150", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5155", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5160", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5221", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5223", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5245", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5250", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5255", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5260", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5321", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5323", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5345", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5350", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5355", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5360", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5365", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5421", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5423", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5445", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5450", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5455", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5460", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5465", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5621", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5623", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5645", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5650", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5655", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5660", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5665", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5721", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5723", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5745", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5750", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5755", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5760", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5765", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5821", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5823", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5845", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5850", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5855", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5860", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5865", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5921", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5923", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5945", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5950", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5955", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5960", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5965", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6021", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6023", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6045", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6050", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6055", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6060", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6065", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6121", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6123", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6145", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6150", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6155", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6160", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6165", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6221", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6223", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6245", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6250", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6255", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6260", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6265", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6321", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6323", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6345", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6350", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6355", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6360", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6521", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6523", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6545", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6550", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6555", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6560", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6565", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6621", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6623", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6645", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6650", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6655", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6660", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6665", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "4621Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4623Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4645Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4650Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4655Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4660Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4821Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4823Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4845Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4850Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4855Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4860Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "5121Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5123Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5145Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5150Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5155Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5160Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5165Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5321Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5323Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5345Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5350Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5355Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5360Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5365Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5421Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5423Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5445Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5450Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5455Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5460Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5465Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5721Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5723Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5745Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5750Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5755Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5760Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5765Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}]}, "summer": {"sandstone": [{"id": "1808", "st": 18, "sl": 8, "W": 169.0, "C": 255.0, "S1": 850.0, "G": 1013.0, "cd": 3.16}, {"id": "1810", "st": 18, "sl": 10, "W": 172.0, "C": 259.0, "S1": 855.0, "G": 997.0, "cd": 3.16}, {"id": "1812", "st": 18, "sl": 12, "W": 175.0, "C": 264.0, "S1": 874.0, "G": 965.0, "cd": 3.16}, {"id": "1815", "st": 18, "sl": 15, "W": 180.0, "C": 271.0, "S1": 894.0, "G": 925.0, "cd": 3.16}, {"id": "1818", "st": 18, "sl": 18, "W": 185.0, "C": 279.0, "S1": 918.0, "G": 882.0, "cd": 3.16}, {"id": "2108", "st": 21, "sl": 8, "W": 169.0, "C": 273.0, "S1": 837.0, "G": 1013.0, "cd": 3.16}, {"id": "2110", "st": 21, "sl": 10, "W": 172.0, "C": 278.0, "S1": 840.0, "G": 997.0, "cd": 3.16}, {"id": "2112", "st": 21, "sl": 12, "W": 175.0, "C": 283.0, "S1": 858.0, "G": 965.0, "cd": 3.16}, {"id": "2115", "st": 21, "sl": 15, "W": 180.0, "C": 291.0, "S1": 879.0, "G": 925.0, "cd": 3.16}, {"id": "2118", "st": 21, "sl": 18, "W": 185.0, "C": 299.0, "S1": 900.0, "G": 882.0, "cd": 3.16}, {"id": "2121", "st": 21, "sl": 21, "W": 191.0, "C": 308.0, "S1": 910.0, "G": 850.0, "cd": 3.16}, {"id": "2408", "st": 24, "sl": 8, "W": 169.0, "C": 300.0, "S1": 814.0, "G": 1013.0, "cd": 3.16}, {"id": "2410", "st": 24, "sl": 10, "W": 172.0, "C": 305.0, "S1": 816.0, "G": 997.0, "cd": 3.16}, {"id": "2412", "st": 24, "sl": 12, "W": 175.0, "C": 310.0, "S1": 837.0, "G": 965.0, "cd": 3.16}, {"id": "2415", "st": 24, "sl": 15, "W": 180.0, "C": 319.0, "S1": 855.0, "G": 925.0, "cd": 3.16}, {"id": "2418", "st": 24, "sl": 18, "W": 185.0, "C": 328.0, "S1": 876.0, "G": 882.0, "cd": 3.16}, {"id": "2421", "st": 24, "sl": 21, "W": 191.0, "C": 338.0, "S1": 884.0, "G": 850.0, "cd": 3.16}, {"id": "2708", "st": 27, "sl": 8, "W": 169.0, "C": 319.0, "S1": 798.0, "G": 1013.0, "cd": 3.16}, {"id": "2710", "st": 27, "sl": 10, "W": 172.0, "C": 325.0, "S1": 801.0, "G": 997.0, "cd": 3.16}, {"id": "2712", "st": 27, "sl": 12, "W": 175.0, "C": 331.0, "S1": 819.0, "G": 965.0, "cd": 3.16}, {"id": "2715", "st": 27, "sl": 15, "W": 180.0, "C": 340.0, "S1": 837.0, "G": 925.0, "cd": 3.16}, {"id": "2718", "st": 27, "sl": 18, "W": 185.0, "C": 349.0, "S1": 861.0, "G": 882.0, "cd": 3.16}, {"id": "2721", "st": 27, "sl": 21, "W": 191.0, "C": 361.0, "S1": 866.0, "G": 850.0, "cd": 3.16}, {"id": "3008", "st": 30, "sl": 8, "W": 172.0, "C": 351.0, "S1": 749.0, "G": 1029.0, "cd": 3.16}, {"id": "3010", "st": 30, "sl": 10, "W": 175.0, "C": 358.0, "S1": 751.0, "G": 1013.0, "cd": 3.16}, {"id": "3012", "st": 30, "sl": 12, "W": 178.0, "C": 364.0, "S1": 770.0, "G": 981.0, "cd": 3.16}, {"id": "3015", "st": 30, "sl": 15, "W": 183.0, "C": 374.0, "S1": 788.0, "G": 941.0, "cd": 3.16}, {"id": "3018", "st": 30, "sl": 18, "W": 188.0, "C": 384.0, "S1": 803.0, "G": 900.0, "cd": 3.16}, {"id": "3021", "st": 30, "sl": 21, "W": 194.0, "C": 396.0, "S1": 814.0, "G": 866.0, "cd": 3.16}, {"id": "3308", "st": 33, "sl": 8, "W": 175.0, "C": 377.0, "S1": 705.0, "G": 1045.0, "cd": 3.16}, {"id": "3310", "st": 33, "sl": 10, "W": 178.0, "C": 383.0, "S1": 707.0, "G": 1029.0, "cd": 3.16}, {"id": "3312", "st": 33, "sl": 12, "W": 181.0, "C": 390.0, "S1": 725.0, "G": 997.0, "cd": 3.16}, {"id": "3315", "st": 33, "sl": 15, "W": 186.0, "C": 400.0, "S1": 741.0, "G": 957.0, "cd": 3.16}, {"id": "3318", "st": 33, "sl": 18, "W": 191.0, "C": 411.0, "S1": 759.0, "G": 917.0, "cd": 3.16}, {"id": "3321", "st": 33, "sl": 21, "W": 197.0, "C": 424.0, "S1": 767.0, "G": 882.0, "cd": 3.16}, {"id": "3608", "st": 36, "sl": 8, "W": 178.0, "C": 405.0, "S1": 658.0, "G": 1061.0, "cd": 3.16}, {"id": "3610", "st": 36, "sl": 10, "W": 181.0, "C": 412.0, "S1": 660.0, "G": 1045.0, "cd": 3.16}, {"id": "3612", "st": 36, "sl": 12, "W": 184.0, "C": 419.0, "S1": 676.0, "G": 1013.0, "cd": 3.16}, {"id": "3615", "st": 36, "sl": 15, "W": 189.0, "C": 430.0, "S1": 694.0, "G": 973.0, "cd": 3.16}, {"id": "3618", "st": 36, "sl": 18, "W": 194.0, "C": 441.0, "S1": 710.0, "G": 933.0, "cd": 3.16}, {"id": "3621", "st": 36, "sl": 21, "W": 200.0, "C": 455.0, "S1": 715.0, "G": 900.0, "cd": 3.16}, {"id": "2418SPC", "st": 24, "sl": 18, "W": 172.0, "C": 305.0, "S1": 928.0, "G": 882.0, "cd": 3.16}, {"id": "2421SPC", "st": 24, "sl": 21, "W": 175.0, "C": 310.0, "S1": 949.0, "G": 850.0, "cd": 3.16}, {"id": "2715SPC", "st": 27, "sl": 15, "W": 169.0, "C": 319.0, "S1": 884.0, "G": 925.0, "cd": 3.16}, {"id": "2718SPC", "st": 27, "sl": 18, "W": 172.0, "C": 325.0, "S1": 913.0, "G": 882.0, "cd": 3.16}, {"id": "2721SPC", "st": 27, "sl": 21, "W": 175.0, "C": 331.0, "S1": 931.0, "G": 850.0, "cd": 3.16}, {"id": "3015SPC", "st": 30, "sl": 15, "W": 169.0, "C": 345.0, "S1": 848.0, "G": 941.0, "cd": 3.16}, {"id": "3018SPC", "st": 30, "sl": 18, "W": 172.0, "C": 351.0, "S1": 874.0, "G": 900.0, "cd": 3.16}, {"id": "3021SPC", "st": 30, "sl": 21, "W": 175.0, "C": 358.0, "S1": 894.0, "G": 866.0, "cd": 3.16}, {"id": "3315SPC", "st": 33, "sl": 15, "W": 169.0, "C": 364.0, "S1": 816.0, "G": 957.0, "cd": 3.16}, {"id": "3318SPC", "st": 33, "sl": 18, "W": 172.0, "C": 370.0, "S1": 842.0, "G": 917.0, "cd": 3.16}, {"id": "3321SPC", "st": 33, "sl": 21, "W": 175.0, "C": 377.0, "S1": 863.0, "G": 882.0, "cd": 3.16}, {"id": "3615SPC", "st": 36, "sl": 15, "W": 169.0, "C": 384.0, "S1": 783.0, "G": 973.0, "cd": 3.16}, {"id": "3618SPC", "st": 36, "sl": 18, "W": 172.0, "C": 391.0, "S1": 809.0, "G": 933.0, "cd": 3.16}, {"id": "3621SPC", "st": 36, "sl": 21, "W": 175.0, "C": 398.0, "S1": 827.0, "G": 900.0, "cd": 3.16}, {"id": "4015SPC", "st": 40, "sl": 15, "W": 169.0, "C": 408.0, "S1": 764.0, "G": 973.0, "cd": 3.16}, {"id": "4018SPC", "st": 40, "sl": 18, "W": 172.0, "C": 415.0, "S1": 790.0, "G": 933.0, "cd": 3.16}, {"id": "4021SPC", "st": 40, "sl": 21, "W": 175.0, "C": 422.0, "S1": 806.0, "G": 900.0, "cd": 3.16}, {"id": "4215SPC", "st": 42, "sl": 15, "W": 169.0, "C": 428.0, "S1": 733.0, "G": 989.0, "cd": 3.16}, {"id": "4218SPC", "st": 42, "sl": 18, "W": 172.0, "C": 436.0, "S1": 757.0, "G": 949.0, "cd": 3.16}, {"id": "4221SPC", "st": 42, "sl": 21, "W": 175.0, "C": 443.0, "S1": 775.0, "G": 917.0, "cd": 3.16}, {"id": "4515SPC", "st": 45, "sl": 15, "W": 169.0, "C": 451.0, "S1": 712.0, "G": 989.0, "cd": 3.16}, {"id": "4518SPC", "st": 45, "sl": 18, "W": 172.0, "C": 459.0, "S1": 738.0, "G": 949.0, "cd": 3.16}, {"id": "4521SPC", "st": 45, "sl": 21, "W": 175.0, "C": 467.0, "S1": 754.0, "G": 917.0, "cd": 3.16}, {"id": "BB1808", "st": 18, "sl": 8, "W": 167.0, "C": 253.0, "S1": 850.0, "G": 1021.0, "cd": 3.04}, {"id": "BB1810", "st": 18, "sl": 10, "W": 170.0, "C": 258.0, "S1": 853.0, "G": 1004.0, "cd": 3.04}, {"id": "BB1812", "st": 18, "sl": 12, "W": 173.0, "C": 263.0, "S1": 871.0, "G": 972.0, "cd": 3.04}, {"id": "BB1815", "st": 18, "sl": 15, "W": 178.0, "C": 270.0, "S1": 892.0, "G": 932.0, "cd": 3.04}, {"id": "BB1818", "st": 18, "sl": 18, "W": 183.0, "C": 278.0, "S1": 915.0, "G": 888.0, "cd": 3.04}, {"id": "BB2108", "st": 21, "sl": 8, "W": 167.0, "C": 272.0, "S1": 835.0, "G": 1021.0, "cd": 3.04}, {"id": "BB2110", "st": 21, "sl": 10, "W": 170.0, "C": 277.0, "S1": 837.0, "G": 1004.0, "cd": 3.04}, {"id": "BB2112", "st": 21, "sl": 12, "W": 173.0, "C": 282.0, "S1": 855.0, "G": 972.0, "cd": 3.04}, {"id": "BB2115", "st": 21, "sl": 15, "W": 178.0, "C": 290.0, "S1": 876.0, "G": 932.0, "cd": 3.04}, {"id": "BB2118", "st": 21, "sl": 18, "W": 183.0, "C": 298.0, "S1": 897.0, "G": 888.0, "cd": 3.04}, {"id": "BB2408", "st": 24, "sl": 8, "W": 167.0, "C": 299.0, "S1": 811.0, "G": 1021.0, "cd": 3.04}, {"id": "BB2410", "st": 24, "sl": 10, "W": 170.0, "C": 304.0, "S1": 814.0, "G": 1004.0, "cd": 3.04}, {"id": "BB2412", "st": 24, "sl": 12, "W": 173.0, "C": 309.0, "S1": 832.0, "G": 972.0, "cd": 3.04}, {"id": "BB2415", "st": 24, "sl": 15, "W": 178.0, "C": 318.0, "S1": 850.0, "G": 932.0, "cd": 3.04}, {"id": "BB2418", "st": 24, "sl": 18, "W": 183.0, "C": 327.0, "S1": 871.0, "G": 888.0, "cd": 3.04}, {"id": "BB2708", "st": 27, "sl": 8, "W": 167.0, "C": 318.0, "S1": 793.0, "G": 1021.0, "cd": 3.04}, {"id": "BB2710", "st": 27, "sl": 10, "W": 170.0, "C": 324.0, "S1": 796.0, "G": 1004.0, "cd": 3.04}, {"id": "BB2712", "st": 27, "sl": 12, "W": 173.0, "C": 330.0, "S1": 814.0, "G": 972.0, "cd": 3.04}, {"id": "BB2715", "st": 27, "sl": 15, "W": 178.0, "C": 339.0, "S1": 832.0, "G": 932.0, "cd": 3.04}, {"id": "BB2718", "st": 27, "sl": 18, "W": 183.0, "C": 349.0, "S1": 853.0, "G": 888.0, "cd": 3.04}], "limestone": [{"id": "1808", "st": 18, "sl": 8, "W": 169.0, "C": 253.0, "S1": 853.0, "G": 1021.0, "cd": 3.16}, {"id": "1810", "st": 18, "sl": 10, "W": 172.0, "C": 257.0, "S1": 858.0, "G": 1004.0, "cd": 3.16}, {"id": "1812", "st": 18, "sl": 12, "W": 175.0, "C": 262.0, "S1": 876.0, "G": 972.0, "cd": 3.16}, {"id": "1815", "st": 18, "sl": 15, "W": 180.0, "C": 269.0, "S1": 897.0, "G": 932.0, "cd": 3.16}, {"id": "1818", "st": 18, "sl": 18, "W": 185.0, "C": 277.0, "S1": 918.0, "G": 888.0, "cd": 3.16}, {"id": "2108", "st": 21, "sl": 8, "W": 169.0, "C": 271.0, "S1": 837.0, "G": 1021.0, "cd": 3.16}, {"id": "2110", "st": 21, "sl": 10, "W": 172.0, "C": 276.0, "S1": 842.0, "G": 1004.0, "cd": 3.16}, {"id": "2112", "st": 21, "sl": 12, "W": 175.0, "C": 280.0, "S1": 861.0, "G": 972.0, "cd": 3.16}, {"id": "2115", "st": 21, "sl": 15, "W": 180.0, "C": 288.0, "S1": 881.0, "G": 932.0, "cd": 3.16}, {"id": "2118", "st": 21, "sl": 18, "W": 185.0, "C": 296.0, "S1": 902.0, "G": 888.0, "cd": 3.16}, {"id": "2121", "st": 21, "sl": 21, "W": 191.0, "C": 306.0, "S1": 910.0, "G": 856.0, "cd": 3.16}, {"id": "2408", "st": 24, "sl": 8, "W": 169.0, "C": 297.0, "S1": 816.0, "G": 1021.0, "cd": 3.16}, {"id": "2410", "st": 24, "sl": 10, "W": 172.0, "C": 302.0, "S1": 819.0, "G": 1004.0, "cd": 3.16}, {"id": "2412", "st": 24, "sl": 12, "W": 175.0, "C": 307.0, "S1": 840.0, "G": 972.0, "cd": 3.16}, {"id": "2415", "st": 24, "sl": 15, "W": 180.0, "C": 316.0, "S1": 858.0, "G": 932.0, "cd": 3.16}, {"id": "2418", "st": 24, "sl": 18, "W": 185.0, "C": 325.0, "S1": 879.0, "G": 888.0, "cd": 3.16}, {"id": "2421", "st": 24, "sl": 21, "W": 191.0, "C": 335.0, "S1": 887.0, "G": 856.0, "cd": 3.16}, {"id": "2708", "st": 27, "sl": 8, "W": 169.0, "C": 316.0, "S1": 801.0, "G": 1021.0, "cd": 3.16}, {"id": "2710", "st": 27, "sl": 10, "W": 172.0, "C": 322.0, "S1": 803.0, "G": 1004.0, "cd": 3.16}, {"id": "2712", "st": 27, "sl": 12, "W": 175.0, "C": 328.0, "S1": 822.0, "G": 972.0, "cd": 3.16}, {"id": "2715", "st": 27, "sl": 15, "W": 180.0, "C": 337.0, "S1": 840.0, "G": 932.0, "cd": 3.16}, {"id": "2718", "st": 27, "sl": 18, "W": 185.0, "C": 346.0, "S1": 863.0, "G": 888.0, "cd": 3.16}, {"id": "2721", "st": 27, "sl": 21, "W": 191.0, "C": 357.0, "S1": 868.0, "G": 856.0, "cd": 3.16}, {"id": "3008", "st": 30, "sl": 8, "W": 172.0, "C": 348.0, "S1": 751.0, "G": 1037.0, "cd": 3.16}, {"id": "3010", "st": 30, "sl": 10, "W": 175.0, "C": 354.0, "S1": 754.0, "G": 1021.0, "cd": 3.16}, {"id": "3012", "st": 30, "sl": 12, "W": 178.0, "C": 360.0, "S1": 772.0, "G": 988.0, "cd": 3.16}, {"id": "3015", "st": 30, "sl": 15, "W": 183.0, "C": 370.0, "S1": 790.0, "G": 948.0, "cd": 3.16}, {"id": "3018", "st": 30, "sl": 18, "W": 188.0, "C": 380.0, "S1": 809.0, "G": 907.0, "cd": 3.16}, {"id": "3021", "st": 30, "sl": 21, "W": 194.0, "C": 392.0, "S1": 816.0, "G": 872.0, "cd": 3.16}, {"id": "3308", "st": 33, "sl": 8, "W": 175.0, "C": 373.0, "S1": 707.0, "G": 1053.0, "cd": 3.16}, {"id": "3310", "st": 33, "sl": 10, "W": 178.0, "C": 379.0, "S1": 710.0, "G": 1037.0, "cd": 3.16}, {"id": "3312", "st": 33, "sl": 12, "W": 181.0, "C": 386.0, "S1": 728.0, "G": 1004.0, "cd": 3.16}, {"id": "3315", "st": 33, "sl": 15, "W": 186.0, "C": 396.0, "S1": 746.0, "G": 964.0, "cd": 3.16}, {"id": "3318", "st": 33, "sl": 18, "W": 191.0, "C": 407.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "3321", "st": 33, "sl": 21, "W": 197.0, "C": 420.0, "S1": 770.0, "G": 888.0, "cd": 3.16}, {"id": "3608", "st": 36, "sl": 8, "W": 178.0, "C": 400.0, "S1": 660.0, "G": 1069.0, "cd": 3.16}, {"id": "3610", "st": 36, "sl": 10, "W": 181.0, "C": 407.0, "S1": 663.0, "G": 1053.0, "cd": 3.16}, {"id": "3612", "st": 36, "sl": 12, "W": 184.0, "C": 414.0, "S1": 681.0, "G": 1021.0, "cd": 3.16}, {"id": "3615", "st": 36, "sl": 15, "W": 189.0, "C": 425.0, "S1": 699.0, "G": 980.0, "cd": 3.16}, {"id": "3618", "st": 36, "sl": 18, "W": 194.0, "C": 436.0, "S1": 715.0, "G": 940.0, "cd": 3.16}, {"id": "3621", "st": 36, "sl": 21, "W": 200.0, "C": 450.0, "S1": 720.0, "G": 907.0, "cd": 3.16}, {"id": "2418SPC", "st": 24, "sl": 18, "W": 172.0, "C": 302.0, "S1": 931.0, "G": 888.0, "cd": 3.16}, {"id": "2421SPC", "st": 24, "sl": 21, "W": 175.0, "C": 307.0, "S1": 952.0, "G": 856.0, "cd": 3.16}, {"id": "2715SPC", "st": 27, "sl": 15, "W": 169.0, "C": 316.0, "S1": 887.0, "G": 932.0, "cd": 3.16}, {"id": "2718SPC", "st": 27, "sl": 18, "W": 172.0, "C": 322.0, "S1": 915.0, "G": 888.0, "cd": 3.16}, {"id": "2721SPC", "st": 27, "sl": 21, "W": 175.0, "C": 328.0, "S1": 933.0, "G": 856.0, "cd": 3.16}, {"id": "3015SPC", "st": 30, "sl": 15, "W": 169.0, "C": 342.0, "S1": 850.0, "G": 948.0, "cd": 3.16}, {"id": "3018SPC", "st": 30, "sl": 18, "W": 172.0, "C": 348.0, "S1": 876.0, "G": 907.0, "cd": 3.16}, {"id": "3021SPC", "st": 30, "sl": 21, "W": 175.0, "C": 354.0, "S1": 897.0, "G": 872.0, "cd": 3.16}, {"id": "3315SPC", "st": 33, "sl": 15, "W": 169.0, "C": 360.0, "S1": 819.0, "G": 964.0, "cd": 3.16}, {"id": "3318SPC", "st": 33, "sl": 18, "W": 172.0, "C": 366.0, "S1": 845.0, "G": 923.0, "cd": 3.16}, {"id": "3321SPC", "st": 33, "sl": 21, "W": 175.0, "C": 373.0, "S1": 866.0, "G": 888.0, "cd": 3.16}, {"id": "3615SPC", "st": 36, "sl": 15, "W": 169.0, "C": 380.0, "S1": 788.0, "G": 980.0, "cd": 3.16}, {"id": "3618SPC", "st": 36, "sl": 18, "W": 172.0, "C": 387.0, "S1": 814.0, "G": 940.0, "cd": 3.16}, {"id": "3621SPC", "st": 36, "sl": 21, "W": 175.0, "C": 394.0, "S1": 829.0, "G": 907.0, "cd": 3.16}, {"id": "4015SPC", "st": 40, "sl": 15, "W": 169.0, "C": 403.0, "S1": 767.0, "G": 980.0, "cd": 3.16}, {"id": "4018SPC", "st": 40, "sl": 18, "W": 172.0, "C": 410.0, "S1": 793.0, "G": 940.0, "cd": 3.16}, {"id": "4021SPC", "st": 40, "sl": 21, "W": 175.0, "C": 417.0, "S1": 811.0, "G": 907.0, "cd": 3.16}, {"id": "4215SPC", "st": 42, "sl": 15, "W": 169.0, "C": 423.0, "S1": 751.0, "G": 980.0, "cd": 3.16}, {"id": "4218SPC", "st": 42, "sl": 18, "W": 172.0, "C": 430.0, "S1": 777.0, "G": 940.0, "cd": 3.16}, {"id": "4221SPC", "st": 42, "sl": 21, "W": 175.0, "C": 438.0, "S1": 793.0, "G": 907.0, "cd": 3.16}, {"id": "4515SPC", "st": 45, "sl": 15, "W": 169.0, "C": 445.0, "S1": 718.0, "G": 996.0, "cd": 3.16}, {"id": "4518SPC", "st": 45, "sl": 18, "W": 172.0, "C": 453.0, "S1": 744.0, "G": 956.0, "cd": 3.16}, {"id": "4521SPC", "st": 45, "sl": 21, "W": 175.0, "C": 461.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "BB1808", "st": 18, "sl": 8, "W": 167.0, "C": 252.0, "S1": 850.0, "G": 1021.0, "cd": 3.04}, {"id": "BB1810", "st": 18, "sl": 10, "W": 170.0, "C": 256.0, "S1": 855.0, "G": 1004.0, "cd": 3.04}, {"id": "BB1812", "st": 18, "sl": 12, "W": 173.0, "C": 261.0, "S1": 874.0, "G": 972.0, "cd": 3.04}, {"id": "BB1815", "st": 18, "sl": 15, "W": 178.0, "C": 268.0, "S1": 894.0, "G": 932.0, "cd": 3.04}, {"id": "BB1818", "st": 18, "sl": 18, "W": 183.0, "C": 276.0, "S1": 915.0, "G": 888.0, "cd": 3.04}, {"id": "BB2108", "st": 21, "sl": 8, "W": 167.0, "C": 270.0, "S1": 835.0, "G": 1021.0, "cd": 3.04}, {"id": "BB2110", "st": 21, "sl": 10, "W": 170.0, "C": 275.0, "S1": 840.0, "G": 1004.0, "cd": 3.04}, {"id": "BB2112", "st": 21, "sl": 12, "W": 173.0, "C": 279.0, "S1": 858.0, "G": 972.0, "cd": 3.04}, {"id": "BB2115", "st": 21, "sl": 15, "W": 178.0, "C": 287.0, "S1": 879.0, "G": 932.0, "cd": 3.04}, {"id": "BB2118", "st": 21, "sl": 18, "W": 183.0, "C": 296.0, "S1": 900.0, "G": 888.0, "cd": 3.04}, {"id": "BB2408", "st": 24, "sl": 8, "W": 167.0, "C": 296.0, "S1": 814.0, "G": 1021.0, "cd": 3.04}, {"id": "BB2410", "st": 24, "sl": 10, "W": 170.0, "C": 301.0, "S1": 816.0, "G": 1004.0, "cd": 3.04}, {"id": "BB2412", "st": 24, "sl": 12, "W": 173.0, "C": 307.0, "S1": 835.0, "G": 972.0, "cd": 3.04}, {"id": "BB2415", "st": 24, "sl": 15, "W": 178.0, "C": 315.0, "S1": 853.0, "G": 932.0, "cd": 3.04}, {"id": "BB2418", "st": 24, "sl": 18, "W": 183.0, "C": 324.0, "S1": 874.0, "G": 888.0, "cd": 3.04}, {"id": "BB2708", "st": 27, "sl": 8, "W": 167.0, "C": 315.0, "S1": 796.0, "G": 1021.0, "cd": 3.04}, {"id": "BB2710", "st": 27, "sl": 10, "W": 170.0, "C": 321.0, "S1": 798.0, "G": 1004.0, "cd": 3.04}, {"id": "BB2712", "st": 27, "sl": 12, "W": 173.0, "C": 327.0, "S1": 816.0, "G": 972.0, "cd": 3.04}, {"id": "BB2715", "st": 27, "sl": 15, "W": 178.0, "C": 336.0, "S1": 835.0, "G": 932.0, "cd": 3.04}, {"id": "BB2718", "st": 27, "sl": 18, "W": 183.0, "C": 346.0, "S1": 855.0, "G": 888.0, "cd": 3.04}], "hs30": [{"id": "4621", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4623", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4645", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4650", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4655", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4660", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4721", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4723", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4745", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4750", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4755", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4760", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4821", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4823", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4845", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4850", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4855", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4860", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4921", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4923", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4945", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4950", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4955", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4960", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "5021", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5023", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5045", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5050", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5055", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5060", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5121", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5123", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5145", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5150", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5155", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5160", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5221", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5223", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5245", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5250", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5255", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5260", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5321", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5323", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5345", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5350", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5355", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5360", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5365", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5421", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5423", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5445", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5450", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5455", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5460", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5465", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5621", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5623", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5645", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5650", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5655", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5660", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5665", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5721", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5723", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5745", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5750", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5755", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5760", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5765", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5821", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5823", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5845", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5850", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5855", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5860", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5865", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5921", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5923", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5945", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5950", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5955", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5960", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5965", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "6021", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6023", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6045", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6050", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6055", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6060", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6065", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6121", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6123", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6145", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6150", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6155", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6160", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6165", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6221", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6223", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6245", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6250", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6255", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6260", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6265", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6321", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6323", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6345", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6350", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6355", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6360", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6521", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6523", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6545", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6550", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6555", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6560", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6565", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6621", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6623", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6645", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6650", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6655", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6660", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6665", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6821", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6823", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6845", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6850", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6855", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6860", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6865", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "7121", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7123", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7145", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7150", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7155", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7160", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7165", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "4621Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4623Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4645Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4650Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4655Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4660Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4821Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4823Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4845Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4850Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4855Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4860Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "5121Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5123Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5145Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5150Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5155Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5160Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5165Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5321Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5323Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5345Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5350Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5355Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5360Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5365Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5421Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5423Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5445Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5450Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5455Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5460Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5465Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5721Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5723Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5745Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5750Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5755Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5760Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5765Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}], "hs45": [{"id": "4621", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4623", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4645", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4650", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4655", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4660", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4721", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4723", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4745", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4750", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4755", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4760", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4821", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4823", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4845", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4850", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4855", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4860", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4921", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4923", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4945", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4950", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4955", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4960", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "5021", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5023", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5045", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5050", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5055", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5060", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5121", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5123", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5145", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5150", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5155", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5160", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5221", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5223", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5245", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5250", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5255", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5260", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5321", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5323", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5345", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5350", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5355", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5360", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5365", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5421", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5423", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5445", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5450", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5455", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5460", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5465", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5621", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5623", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5645", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5650", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5655", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5660", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5665", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5721", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5723", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5745", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5750", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5755", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5760", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5765", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5821", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5823", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5845", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5850", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5855", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5860", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5865", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5921", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5923", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5945", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5950", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5955", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5960", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5965", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6021", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6023", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6045", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6050", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6055", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6060", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6065", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6121", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6123", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6145", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6150", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6155", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6160", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6165", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6221", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6223", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6245", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6250", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6255", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6260", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6265", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6321", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6323", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6345", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6350", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6355", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6360", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6521", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6523", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6545", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6550", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6555", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6560", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6565", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6621", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6623", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6645", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6650", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6655", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6660", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6665", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "4621Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4623Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4645Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4650Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4655Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4660Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4821Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4823Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4845Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4850Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4855Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4860Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "5121Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5123Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5145Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5150Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5155Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5160Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5165Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5321Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5323Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5345Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5350Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5355Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5360Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5365Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5421Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5423Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5445Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5450Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5455Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5460Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5465Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5721Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5723Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5745Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5750Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5755Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5760Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5765Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}]}, "winter": {"sandstone": [{"id": "1808", "st": 18, "sl": 8, "W": 165.0, "C": 249.0, "S1": 866.0, "G": 1013.0, "cd": 3.16}, {"id": "1810", "st": 18, "sl": 10, "W": 168.0, "C": 253.0, "S1": 871.0, "G": 997.0, "cd": 3.16}, {"id": "1812", "st": 18, "sl": 12, "W": 171.0, "C": 258.0, "S1": 889.0, "G": 965.0, "cd": 3.16}, {"id": "1815", "st": 18, "sl": 15, "W": 176.0, "C": 265.0, "S1": 910.0, "G": 925.0, "cd": 3.16}, {"id": "1818", "st": 18, "sl": 18, "W": 181.0, "C": 273.0, "S1": 933.0, "G": 882.0, "cd": 3.16}, {"id": "2108", "st": 21, "sl": 8, "W": 165.0, "C": 267.0, "S1": 853.0, "G": 1013.0, "cd": 3.16}, {"id": "2110", "st": 21, "sl": 10, "W": 168.0, "C": 271.0, "S1": 855.0, "G": 997.0, "cd": 3.16}, {"id": "2112", "st": 21, "sl": 12, "W": 171.0, "C": 276.0, "S1": 876.0, "G": 965.0, "cd": 3.16}, {"id": "2115", "st": 21, "sl": 15, "W": 176.0, "C": 284.0, "S1": 894.0, "G": 925.0, "cd": 3.16}, {"id": "2118", "st": 21, "sl": 18, "W": 181.0, "C": 292.0, "S1": 918.0, "G": 882.0, "cd": 3.16}, {"id": "2121", "st": 21, "sl": 21, "W": 187.0, "C": 302.0, "S1": 923.0, "G": 850.0, "cd": 3.16}, {"id": "2408", "st": 24, "sl": 8, "W": 165.0, "C": 292.0, "S1": 832.0, "G": 1013.0, "cd": 3.16}, {"id": "2410", "st": 24, "sl": 10, "W": 168.0, "C": 298.0, "S1": 835.0, "G": 997.0, "cd": 3.16}, {"id": "2412", "st": 24, "sl": 12, "W": 171.0, "C": 303.0, "S1": 853.0, "G": 965.0, "cd": 3.16}, {"id": "2415", "st": 24, "sl": 15, "W": 176.0, "C": 312.0, "S1": 871.0, "G": 925.0, "cd": 3.16}, {"id": "2418", "st": 24, "sl": 18, "W": 181.0, "C": 321.0, "S1": 892.0, "G": 882.0, "cd": 3.16}, {"id": "2421", "st": 24, "sl": 21, "W": 187.0, "C": 331.0, "S1": 900.0, "G": 850.0, "cd": 3.16}, {"id": "2708", "st": 27, "sl": 8, "W": 165.0, "C": 312.0, "S1": 814.0, "G": 1013.0, "cd": 3.16}, {"id": "2710", "st": 27, "sl": 10, "W": 168.0, "C": 317.0, "S1": 819.0, "G": 997.0, "cd": 3.16}, {"id": "2712", "st": 27, "sl": 12, "W": 171.0, "C": 323.0, "S1": 837.0, "G": 965.0, "cd": 3.16}, {"id": "2715", "st": 27, "sl": 15, "W": 176.0, "C": 332.0, "S1": 855.0, "G": 925.0, "cd": 3.16}, {"id": "2718", "st": 27, "sl": 18, "W": 181.0, "C": 342.0, "S1": 876.0, "G": 882.0, "cd": 3.16}, {"id": "2721", "st": 27, "sl": 21, "W": 187.0, "C": 353.0, "S1": 881.0, "G": 850.0, "cd": 3.16}, {"id": "3008", "st": 30, "sl": 8, "W": 168.0, "C": 343.0, "S1": 764.0, "G": 1029.0, "cd": 3.16}, {"id": "3010", "st": 30, "sl": 10, "W": 171.0, "C": 349.0, "S1": 770.0, "G": 1013.0, "cd": 3.16}, {"id": "3012", "st": 30, "sl": 12, "W": 174.0, "C": 356.0, "S1": 785.0, "G": 981.0, "cd": 3.16}, {"id": "3015", "st": 30, "sl": 15, "W": 179.0, "C": 366.0, "S1": 803.0, "G": 941.0, "cd": 3.16}, {"id": "3018", "st": 30, "sl": 18, "W": 184.0, "C": 376.0, "S1": 822.0, "G": 900.0, "cd": 3.16}, {"id": "3021", "st": 30, "sl": 21, "W": 190.0, "C": 388.0, "S1": 829.0, "G": 866.0, "cd": 3.16}, {"id": "3308", "st": 33, "sl": 8, "W": 171.0, "C": 368.0, "S1": 723.0, "G": 1045.0, "cd": 3.16}, {"id": "3310", "st": 33, "sl": 10, "W": 174.0, "C": 275.0, "S1": 723.0, "G": 1029.0, "cd": 3.16}, {"id": "3312", "st": 33, "sl": 12, "W": 177.0, "C": 381.0, "S1": 741.0, "G": 997.0, "cd": 3.16}, {"id": "3315", "st": 33, "sl": 15, "W": 182.0, "C": 392.0, "S1": 759.0, "G": 957.0, "cd": 3.16}, {"id": "3318", "st": 33, "sl": 18, "W": 187.0, "C": 403.0, "S1": 775.0, "G": 917.0, "cd": 3.16}, {"id": "3321", "st": 33, "sl": 21, "W": 193.0, "C": 415.0, "S1": 785.0, "G": 882.0, "cd": 3.16}, {"id": "3608", "st": 36, "sl": 8, "W": 174.0, "C": 396.0, "S1": 673.0, "G": 1064.0, "cd": 3.16}, {"id": "3610", "st": 36, "sl": 10, "W": 177.0, "C": 403.0, "S1": 676.0, "G": 1045.0, "cd": 3.16}, {"id": "3612", "st": 36, "sl": 12, "W": 180.0, "C": 409.0, "S1": 697.0, "G": 1013.0, "cd": 3.16}, {"id": "3615", "st": 36, "sl": 15, "W": 185.0, "C": 421.0, "S1": 712.0, "G": 973.0, "cd": 3.16}, {"id": "3618", "st": 36, "sl": 18, "W": 190.0, "C": 432.0, "S1": 728.0, "G": 933.0, "cd": 3.16}, {"id": "3621", "st": 36, "sl": 21, "W": 196.0, "C": 446.0, "S1": 733.0, "G": 900.0, "cd": 3.16}, {"id": "2418SPC", "st": 24, "sl": 18, "W": 172.0, "C": 305.0, "S1": 928.0, "G": 882.0, "cd": 3.16}, {"id": "2421SPC", "st": 24, "sl": 21, "W": 175.0, "C": 310.0, "S1": 949.0, "G": 850.0, "cd": 3.16}, {"id": "2715SPC", "st": 27, "sl": 15, "W": 169.0, "C": 319.0, "S1": 884.0, "G": 925.0, "cd": 3.16}, {"id": "2718SPC", "st": 27, "sl": 18, "W": 172.0, "C": 325.0, "S1": 913.0, "G": 882.0, "cd": 3.16}, {"id": "2721SPC", "st": 27, "sl": 21, "W": 175.0, "C": 331.0, "S1": 931.0, "G": 850.0, "cd": 3.16}, {"id": "3015SPC", "st": 30, "sl": 15, "W": 169.0, "C": 345.0, "S1": 848.0, "G": 941.0, "cd": 3.16}, {"id": "3018SPC", "st": 30, "sl": 18, "W": 172.0, "C": 351.0, "S1": 874.0, "G": 900.0, "cd": 3.16}, {"id": "3021SPC", "st": 30, "sl": 21, "W": 175.0, "C": 358.0, "S1": 894.0, "G": 866.0, "cd": 3.16}, {"id": "3315SPC", "st": 33, "sl": 15, "W": 169.0, "C": 364.0, "S1": 816.0, "G": 957.0, "cd": 3.16}, {"id": "3318SPC", "st": 33, "sl": 18, "W": 172.0, "C": 370.0, "S1": 842.0, "G": 917.0, "cd": 3.16}, {"id": "3321SPC", "st": 33, "sl": 21, "W": 175.0, "C": 377.0, "S1": 863.0, "G": 882.0, "cd": 3.16}, {"id": "3615SPC", "st": 36, "sl": 15, "W": 169.0, "C": 384.0, "S1": 783.0, "G": 973.0, "cd": 3.16}, {"id": "3618SPC", "st": 36, "sl": 18, "W": 172.0, "C": 391.0, "S1": 809.0, "G": 933.0, "cd": 3.16}, {"id": "3621SPC", "st": 36, "sl": 21, "W": 175.0, "C": 398.0, "S1": 827.0, "G": 900.0, "cd": 3.16}, {"id": "4015SPC", "st": 40, "sl": 15, "W": 169.0, "C": 408.0, "S1": 764.0, "G": 973.0, "cd": 3.16}, {"id": "4018SPC", "st": 40, "sl": 18, "W": 172.0, "C": 415.0, "S1": 790.0, "G": 933.0, "cd": 3.16}, {"id": "4021SPC", "st": 40, "sl": 21, "W": 175.0, "C": 422.0, "S1": 806.0, "G": 900.0, "cd": 3.16}, {"id": "4215SPC", "st": 42, "sl": 15, "W": 169.0, "C": 428.0, "S1": 733.0, "G": 989.0, "cd": 3.16}, {"id": "4218SPC", "st": 42, "sl": 18, "W": 172.0, "C": 436.0, "S1": 757.0, "G": 949.0, "cd": 3.16}, {"id": "4221SPC", "st": 42, "sl": 21, "W": 175.0, "C": 443.0, "S1": 775.0, "G": 917.0, "cd": 3.16}, {"id": "4515SPC", "st": 45, "sl": 15, "W": 169.0, "C": 451.0, "S1": 712.0, "G": 989.0, "cd": 3.16}, {"id": "4518SPC", "st": 45, "sl": 18, "W": 172.0, "C": 459.0, "S1": 738.0, "G": 949.0, "cd": 3.16}, {"id": "4521SPC", "st": 45, "sl": 21, "W": 175.0, "C": 467.0, "S1": 754.0, "G": 917.0, "cd": 3.16}, {"id": "BB1808", "st": 18, "sl": 8, "W": 163.0, "C": 247.0, "S1": 866.0, "G": 1013.0, "cd": 3.04}, {"id": "BB1810", "st": 18, "sl": 10, "W": 166.0, "C": 252.0, "S1": 868.0, "G": 997.0, "cd": 3.04}, {"id": "BB1812", "st": 18, "sl": 12, "W": 169.0, "C": 256.0, "S1": 889.0, "G": 965.0, "cd": 3.04}, {"id": "BB1815", "st": 18, "sl": 15, "W": 174.0, "C": 264.0, "S1": 907.0, "G": 925.0, "cd": 3.04}, {"id": "BB1818", "st": 18, "sl": 18, "W": 179.0, "C": 272.0, "S1": 931.0, "G": 882.0, "cd": 3.04}, {"id": "BB2108", "st": 21, "sl": 8, "W": 163.0, "C": 265.0, "S1": 850.0, "G": 1013.0, "cd": 3.04}, {"id": "BB2110", "st": 21, "sl": 10, "W": 166.0, "C": 270.0, "S1": 853.0, "G": 997.0, "cd": 3.04}, {"id": "BB2112", "st": 21, "sl": 12, "W": 169.0, "C": 275.0, "S1": 874.0, "G": 965.0, "cd": 3.04}, {"id": "BB2115", "st": 21, "sl": 15, "W": 174.0, "C": 283.0, "S1": 892.0, "G": 925.0, "cd": 3.04}, {"id": "BB2118", "st": 21, "sl": 18, "W": 179.0, "C": 291.0, "S1": 913.0, "G": 882.0, "cd": 3.04}, {"id": "BB2408", "st": 24, "sl": 8, "W": 163.0, "C": 291.0, "S1": 827.0, "G": 1013.0, "cd": 3.04}, {"id": "BB2410", "st": 24, "sl": 10, "W": 166.0, "C": 297.0, "S1": 829.0, "G": 997.0, "cd": 3.04}, {"id": "BB2412", "st": 24, "sl": 12, "W": 169.0, "C": 302.0, "S1": 850.0, "G": 965.0, "cd": 3.04}, {"id": "BB2415", "st": 24, "sl": 15, "W": 174.0, "C": 311.0, "S1": 868.0, "G": 925.0, "cd": 3.04}, {"id": "BB2418", "st": 24, "sl": 18, "W": 179.0, "C": 320.0, "S1": 889.0, "G": 882.0, "cd": 3.04}, {"id": "BB2708", "st": 27, "sl": 8, "W": 163.0, "C": 311.0, "S1": 811.0, "G": 1013.0, "cd": 3.04}, {"id": "BB2710", "st": 27, "sl": 10, "W": 166.0, "C": 317.0, "S1": 814.0, "G": 997.0, "cd": 3.04}, {"id": "BB2712", "st": 27, "sl": 12, "W": 169.0, "C": 322.0, "S1": 832.0, "G": 965.0, "cd": 3.04}, {"id": "BB2715", "st": 27, "sl": 15, "W": 174.0, "C": 332.0, "S1": 850.0, "G": 925.0, "cd": 3.04}, {"id": "BB2718", "st": 27, "sl": 18, "W": 179.0, "C": 341.0, "S1": 871.0, "G": 882.0, "cd": 3.04}], "limestone": [{"id": "1808", "st": 18, "sl": 8, "W": 162.0, "C": 242.0, "S1": 879.0, "G": 1021.0, "cd": 3.16}, {"id": "1810", "st": 18, "sl": 10, "W": 165.0, "C": 247.0, "S1": 884.0, "G": 1004.0, "cd": 3.16}, {"id": "1812", "st": 18, "sl": 12, "W": 168.0, "C": 251.0, "S1": 905.0, "G": 972.0, "cd": 3.16}, {"id": "1815", "st": 18, "sl": 15, "W": 173.0, "C": 259.0, "S1": 923.0, "G": 932.0, "cd": 3.16}, {"id": "1818", "st": 18, "sl": 18, "W": 178.0, "C": 266.0, "S1": 946.0, "G": 888.0, "cd": 3.16}, {"id": "2108", "st": 21, "sl": 8, "W": 162.0, "C": 260.0, "S1": 866.0, "G": 1021.0, "cd": 3.16}, {"id": "2110", "st": 21, "sl": 10, "W": 165.0, "C": 264.0, "S1": 868.0, "G": 1004.0, "cd": 3.16}, {"id": "2112", "st": 21, "sl": 12, "W": 168.0, "C": 269.0, "S1": 889.0, "G": 972.0, "cd": 3.16}, {"id": "2115", "st": 21, "sl": 15, "W": 173.0, "C": 277.0, "S1": 907.0, "G": 932.0, "cd": 3.16}, {"id": "2118", "st": 21, "sl": 18, "W": 178.0, "C": 285.0, "S1": 931.0, "G": 888.0, "cd": 3.16}, {"id": "2121", "st": 21, "sl": 21, "W": 184.0, "C": 295.0, "S1": 939.0, "G": 856.0, "cd": 3.16}, {"id": "2408", "st": 24, "sl": 8, "W": 162.0, "C": 285.0, "S1": 845.0, "G": 1021.0, "cd": 3.16}, {"id": "2410", "st": 24, "sl": 10, "W": 165.0, "C": 290.0, "S1": 848.0, "G": 1004.0, "cd": 3.16}, {"id": "2412", "st": 24, "sl": 12, "W": 168.0, "C": 295.0, "S1": 868.0, "G": 972.0, "cd": 3.16}, {"id": "2415", "st": 24, "sl": 15, "W": 173.0, "C": 304.0, "S1": 887.0, "G": 932.0, "cd": 3.16}, {"id": "2418", "st": 24, "sl": 18, "W": 178.0, "C": 313.0, "S1": 907.0, "G": 888.0, "cd": 3.16}, {"id": "2421", "st": 24, "sl": 21, "W": 184.0, "C": 323.0, "S1": 915.0, "G": 856.0, "cd": 3.16}, {"id": "2708", "st": 27, "sl": 8, "W": 162.0, "C": 303.0, "S1": 829.0, "G": 1021.0, "cd": 3.16}, {"id": "2710", "st": 27, "sl": 10, "W": 165.0, "C": 309.0, "S1": 832.0, "G": 1004.0, "cd": 3.16}, {"id": "2712", "st": 27, "sl": 12, "W": 168.0, "C": 314.0, "S1": 853.0, "G": 972.0, "cd": 3.16}, {"id": "2715", "st": 27, "sl": 15, "W": 173.0, "C": 324.0, "S1": 868.0, "G": 932.0, "cd": 3.16}, {"id": "2718", "st": 27, "sl": 18, "W": 178.0, "C": 333.0, "S1": 892.0, "G": 888.0, "cd": 3.16}, {"id": "2721", "st": 27, "sl": 21, "W": 184.0, "C": 344.0, "S1": 897.0, "G": 856.0, "cd": 3.16}, {"id": "3008", "st": 30, "sl": 8, "W": 165.0, "C": 334.0, "S1": 780.0, "G": 1037.0, "cd": 3.16}, {"id": "3010", "st": 30, "sl": 10, "W": 168.0, "C": 340.0, "S1": 783.0, "G": 1021.0, "cd": 3.16}, {"id": "3012", "st": 30, "sl": 12, "W": 171.0, "C": 346.0, "S1": 803.0, "G": 988.0, "cd": 3.16}, {"id": "3015", "st": 30, "sl": 15, "W": 176.0, "C": 356.0, "S1": 819.0, "G": 948.0, "cd": 3.16}, {"id": "3018", "st": 30, "sl": 18, "W": 181.0, "C": 366.0, "S1": 837.0, "G": 907.0, "cd": 3.16}, {"id": "3021", "st": 30, "sl": 21, "W": 187.0, "C": 378.0, "S1": 845.0, "G": 872.0, "cd": 3.16}, {"id": "3308", "st": 33, "sl": 8, "W": 168.0, "C": 358.0, "S1": 738.0, "G": 1053.0, "cd": 3.16}, {"id": "3310", "st": 33, "sl": 10, "W": 171.0, "C": 364.0, "S1": 741.0, "G": 1037.0, "cd": 3.16}, {"id": "3312", "st": 33, "sl": 12, "W": 174.0, "C": 371.0, "S1": 759.0, "G": 1004.0, "cd": 3.16}, {"id": "3315", "st": 33, "sl": 15, "W": 179.0, "C": 381.0, "S1": 775.0, "G": 964.0, "cd": 3.16}, {"id": "3318", "st": 33, "sl": 18, "W": 184.0, "C": 392.0, "S1": 793.0, "G": 923.0, "cd": 3.16}, {"id": "3321", "st": 33, "sl": 21, "W": 190.0, "C": 405.0, "S1": 801.0, "G": 888.0, "cd": 3.16}, {"id": "3608", "st": 36, "sl": 8, "W": 171.0, "C": 385.0, "S1": 689.0, "G": 1072.0, "cd": 3.16}, {"id": "3610", "st": 36, "sl": 10, "W": 174.0, "C": 391.0, "S1": 694.0, "G": 1053.0, "cd": 3.16}, {"id": "3612", "st": 36, "sl": 12, "W": 177.0, "C": 398.0, "S1": 712.0, "G": 1021.0, "cd": 3.16}, {"id": "3615", "st": 36, "sl": 15, "W": 182.0, "C": 409.0, "S1": 731.0, "G": 980.0, "cd": 3.16}, {"id": "3618", "st": 36, "sl": 18, "W": 187.0, "C": 421.0, "S1": 746.0, "G": 940.0, "cd": 3.16}, {"id": "3621", "st": 36, "sl": 21, "W": 193.0, "C": 434.0, "S1": 751.0, "G": 907.0, "cd": 3.16}, {"id": "2418SPC", "st": 24, "sl": 18, "W": 172.0, "C": 302.0, "S1": 931.0, "G": 888.0, "cd": 3.16}, {"id": "2421SPC", "st": 24, "sl": 21, "W": 175.0, "C": 307.0, "S1": 952.0, "G": 856.0, "cd": 3.16}, {"id": "2715SPC", "st": 27, "sl": 15, "W": 169.0, "C": 316.0, "S1": 887.0, "G": 932.0, "cd": 3.16}, {"id": "2718SPC", "st": 27, "sl": 18, "W": 172.0, "C": 322.0, "S1": 915.0, "G": 888.0, "cd": 3.16}, {"id": "2721SPC", "st": 27, "sl": 21, "W": 175.0, "C": 328.0, "S1": 933.0, "G": 856.0, "cd": 3.16}, {"id": "3015SPC", "st": 30, "sl": 15, "W": 169.0, "C": 342.0, "S1": 850.0, "G": 948.0, "cd": 3.16}, {"id": "3018SPC", "st": 30, "sl": 18, "W": 172.0, "C": 348.0, "S1": 876.0, "G": 907.0, "cd": 3.16}, {"id": "3021SPC", "st": 30, "sl": 21, "W": 175.0, "C": 354.0, "S1": 897.0, "G": 872.0, "cd": 3.16}, {"id": "3315SPC", "st": 33, "sl": 15, "W": 169.0, "C": 360.0, "S1": 819.0, "G": 964.0, "cd": 3.16}, {"id": "3318SPC", "st": 33, "sl": 18, "W": 172.0, "C": 366.0, "S1": 845.0, "G": 923.0, "cd": 3.16}, {"id": "3321SPC", "st": 33, "sl": 21, "W": 175.0, "C": 373.0, "S1": 866.0, "G": 888.0, "cd": 3.16}, {"id": "3615SPC", "st": 36, "sl": 15, "W": 169.0, "C": 380.0, "S1": 788.0, "G": 980.0, "cd": 3.16}, {"id": "3618SPC", "st": 36, "sl": 18, "W": 172.0, "C": 387.0, "S1": 814.0, "G": 940.0, "cd": 3.16}, {"id": "3621SPC", "st": 36, "sl": 21, "W": 175.0, "C": 394.0, "S1": 829.0, "G": 907.0, "cd": 3.16}, {"id": "4015SPC", "st": 40, "sl": 15, "W": 169.0, "C": 403.0, "S1": 767.0, "G": 980.0, "cd": 3.16}, {"id": "4018SPC", "st": 40, "sl": 18, "W": 172.0, "C": 410.0, "S1": 793.0, "G": 940.0, "cd": 3.16}, {"id": "4021SPC", "st": 40, "sl": 21, "W": 175.0, "C": 417.0, "S1": 811.0, "G": 907.0, "cd": 3.16}, {"id": "4215SPC", "st": 42, "sl": 15, "W": 169.0, "C": 423.0, "S1": 751.0, "G": 980.0, "cd": 3.16}, {"id": "4218SPC", "st": 42, "sl": 18, "W": 172.0, "C": 430.0, "S1": 777.0, "G": 940.0, "cd": 3.16}, {"id": "4221SPC", "st": 42, "sl": 21, "W": 175.0, "C": 438.0, "S1": 793.0, "G": 907.0, "cd": 3.16}, {"id": "4515SPC", "st": 45, "sl": 15, "W": 169.0, "C": 445.0, "S1": 718.0, "G": 996.0, "cd": 3.16}, {"id": "4518SPC", "st": 45, "sl": 18, "W": 172.0, "C": 453.0, "S1": 744.0, "G": 956.0, "cd": 3.16}, {"id": "4521SPC", "st": 45, "sl": 21, "W": 175.0, "C": 461.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "BB1808", "st": 18, "sl": 8, "W": 160.0, "C": 241.0, "S1": 879.0, "G": 1021.0, "cd": 3.04}, {"id": "BB1810", "st": 18, "sl": 10, "W": 163.0, "C": 246.0, "S1": 881.0, "G": 1004.0, "cd": 3.04}, {"id": "BB1812", "st": 18, "sl": 12, "W": 166.0, "C": 250.0, "S1": 902.0, "G": 972.0, "cd": 3.04}, {"id": "BB1815", "st": 18, "sl": 15, "W": 171.0, "C": 258.0, "S1": 920.0, "G": 932.0, "cd": 3.04}, {"id": "BB1818", "st": 18, "sl": 18, "W": 176.0, "C": 265.0, "S1": 944.0, "G": 888.0, "cd": 3.04}, {"id": "BB2108", "st": 21, "sl": 8, "W": 160.0, "C": 258.0, "S1": 863.0, "G": 1021.0, "cd": 3.04}, {"id": "BB2110", "st": 21, "sl": 10, "W": 163.0, "C": 263.0, "S1": 866.0, "G": 1004.0, "cd": 3.04}, {"id": "BB2112", "st": 21, "sl": 12, "W": 166.0, "C": 266.0, "S1": 887.0, "G": 972.0, "cd": 3.04}, {"id": "BB2115", "st": 21, "sl": 15, "W": 171.0, "C": 276.0, "S1": 905.0, "G": 932.0, "cd": 3.04}, {"id": "BB2118", "st": 21, "sl": 18, "W": 176.0, "C": 284.0, "S1": 928.0, "G": 888.0, "cd": 3.04}, {"id": "BB2408", "st": 24, "sl": 8, "W": 160.0, "C": 284.0, "S1": 842.0, "G": 1021.0, "cd": 3.04}, {"id": "BB2410", "st": 24, "sl": 10, "W": 163.0, "C": 289.0, "S1": 845.0, "G": 1004.0, "cd": 3.04}, {"id": "BB2412", "st": 24, "sl": 12, "W": 166.0, "C": 294.0, "S1": 863.0, "G": 972.0, "cd": 3.04}, {"id": "BB2415", "st": 24, "sl": 15, "W": 171.0, "C": 303.0, "S1": 881.0, "G": 932.0, "cd": 3.04}, {"id": "BB2418", "st": 24, "sl": 18, "W": 176.0, "C": 312.0, "S1": 902.0, "G": 888.0, "cd": 3.04}, {"id": "BB2708", "st": 27, "sl": 8, "W": 160.0, "C": 302.0, "S1": 827.0, "G": 1021.0, "cd": 3.04}, {"id": "BB2710", "st": 27, "sl": 10, "W": 163.0, "C": 308.0, "S1": 829.0, "G": 1004.0, "cd": 3.04}, {"id": "BB2712", "st": 27, "sl": 12, "W": 166.0, "C": 314.0, "S1": 848.0, "G": 972.0, "cd": 3.04}, {"id": "BB2715", "st": 27, "sl": 15, "W": 171.0, "C": 323.0, "S1": 866.0, "G": 932.0, "cd": 3.04}, {"id": "BB2718", "st": 27, "sl": 18, "W": 176.0, "C": 332.0, "S1": 887.0, "G": 888.0, "cd": 3.04}], "hs30": [{"id": "4621", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4623", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4645", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4650", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4655", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4660", "st": null, "sl": null, "W": 170.0, "C": 436.0, "S1": 832.0, "G": 923.0, "cd": 3.16}, {"id": "4721", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4723", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4745", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4750", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4755", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4760", "st": null, "sl": null, "W": 170.0, "C": 442.0, "S1": 827.0, "G": 923.0, "cd": 3.16}, {"id": "4821", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4823", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4845", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4850", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4855", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4860", "st": null, "sl": null, "W": 170.0, "C": 448.0, "S1": 822.0, "G": 923.0, "cd": 3.16}, {"id": "4921", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4923", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4945", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4950", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4955", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "4960", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 811.0, "G": 923.0, "cd": 3.16}, {"id": "5021", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5023", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5045", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5050", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5055", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5060", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 809.0, "G": 923.0, "cd": 3.16}, {"id": "5121", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5123", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5145", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5150", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5155", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5160", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 801.0, "G": 923.0, "cd": 3.16}, {"id": "5221", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5223", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5245", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5250", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5255", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5260", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 796.0, "G": 923.0, "cd": 3.16}, {"id": "5321", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5323", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5345", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5350", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5355", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5360", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5365", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 785.0, "G": 923.0, "cd": 3.16}, {"id": "5421", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5423", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5445", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5450", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5455", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5460", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5465", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 780.0, "G": 923.0, "cd": 3.16}, {"id": "5621", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5623", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5645", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5650", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5655", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5660", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5665", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 767.0, "G": 923.0, "cd": 3.16}, {"id": "5721", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5723", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5745", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5750", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5755", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5760", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5765", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 759.0, "G": 923.0, "cd": 3.16}, {"id": "5821", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5823", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5845", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5850", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5855", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5860", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5865", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 754.0, "G": 923.0, "cd": 3.16}, {"id": "5921", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5923", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5945", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5950", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5955", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5960", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5965", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "6021", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6023", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6045", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6050", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6055", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6060", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6065", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 738.0, "G": 923.0, "cd": 3.16}, {"id": "6121", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6123", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6145", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6150", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6155", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6160", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6165", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6221", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6223", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6245", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6250", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6255", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6260", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6265", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 731.0, "G": 923.0, "cd": 3.16}, {"id": "6321", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6323", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6345", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6350", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6355", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6360", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 725.0, "G": 923.0, "cd": 3.16}, {"id": "6521", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6523", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6545", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6550", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6555", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6560", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6565", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 707.0, "G": 923.0, "cd": 3.16}, {"id": "6621", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6623", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6645", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6650", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6655", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6660", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6665", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "6821", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6823", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6845", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6850", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6855", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6860", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "6865", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "7121", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7123", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7145", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7150", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7155", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7160", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "7165", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 673.0, "G": 923.0, "cd": 3.16}, {"id": "4621Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4623Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4645Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4650Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4655Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4660Ｍ", "st": null, "sl": null, "W": 170.0, "C": 454.0, "S1": 824.0, "G": 923.0, "cd": 3.21}, {"id": "4821Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4823Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4845Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4850Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4855Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "4860Ｍ", "st": null, "sl": null, "W": 170.0, "C": 466.0, "S1": 814.0, "G": 923.0, "cd": 3.21}, {"id": "5121Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5123Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5145Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5150Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5155Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5160Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5165Ｍ", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 798.0, "G": 923.0, "cd": 3.21}, {"id": "5321Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5323Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5345Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5350Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5355Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5360Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5365Ｍ", "st": null, "sl": null, "W": 170.0, "C": 500.0, "S1": 785.0, "G": 923.0, "cd": 3.21}, {"id": "5421Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5423Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5445Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5450Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5455Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5460Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5465Ｍ", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 780.0, "G": 923.0, "cd": 3.21}, {"id": "5721Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5723Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5745Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5750Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5755Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5760Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}, {"id": "5765Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 759.0, "G": 923.0, "cd": 3.21}], "hs45": [{"id": "4621", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4623", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4645", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4650", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4655", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4660", "st": null, "sl": null, "W": 170.0, "C": 460.0, "S1": 772.0, "G": 923.0, "cd": 3.16}, {"id": "4721", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4723", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4745", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4750", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4755", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4760", "st": null, "sl": null, "W": 170.0, "C": 473.0, "S1": 762.0, "G": 923.0, "cd": 3.16}, {"id": "4821", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4823", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4845", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4850", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4855", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4860", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 757.0, "G": 923.0, "cd": 3.16}, {"id": "4921", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4923", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4945", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4950", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4955", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "4960", "st": null, "sl": null, "W": 170.0, "C": 486.0, "S1": 751.0, "G": 923.0, "cd": 3.16}, {"id": "5021", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5023", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5045", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5050", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5055", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5060", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 746.0, "G": 923.0, "cd": 3.16}, {"id": "5121", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5123", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5145", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5150", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5155", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5160", "st": null, "sl": null, "W": 170.0, "C": 508.0, "S1": 733.0, "G": 923.0, "cd": 3.16}, {"id": "5221", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5223", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5245", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5250", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5255", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5260", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 728.0, "G": 923.0, "cd": 3.16}, {"id": "5321", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5323", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5345", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5350", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5355", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5360", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5365", "st": null, "sl": null, "W": 170.0, "C": 524.0, "S1": 720.0, "G": 923.0, "cd": 3.16}, {"id": "5421", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5423", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5445", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5450", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5455", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5460", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5465", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 715.0, "G": 923.0, "cd": 3.16}, {"id": "5621", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5623", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5645", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5650", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5655", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5660", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5665", "st": null, "sl": null, "W": 170.0, "C": 549.0, "S1": 699.0, "G": 923.0, "cd": 3.16}, {"id": "5721", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5723", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5745", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5750", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5755", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5760", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5765", "st": null, "sl": null, "W": 170.0, "C": 558.0, "S1": 692.0, "G": 923.0, "cd": 3.16}, {"id": "5821", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5823", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5845", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5850", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5855", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5860", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5865", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 686.0, "G": 923.0, "cd": 3.16}, {"id": "5921", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5923", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5945", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5950", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5955", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5960", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "5965", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6021", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6023", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6045", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6050", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6055", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6060", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6065", "st": null, "sl": null, "W": 170.0, "C": 577.0, "S1": 676.0, "G": 923.0, "cd": 3.16}, {"id": "6121", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6123", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6145", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6150", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6155", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6160", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6165", "st": null, "sl": null, "W": 170.0, "C": 587.0, "S1": 668.0, "G": 923.0, "cd": 3.16}, {"id": "6221", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6223", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6245", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6250", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6255", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6260", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6265", "st": null, "sl": null, "W": 170.0, "C": 597.0, "S1": 660.0, "G": 923.0, "cd": 3.16}, {"id": "6321", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6323", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6345", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6350", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6355", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6360", "st": null, "sl": null, "W": 170.0, "C": 608.0, "S1": 653.0, "G": 923.0, "cd": 3.16}, {"id": "6521", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6523", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6545", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6550", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6555", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6560", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6565", "st": null, "sl": null, "W": 170.0, "C": 619.0, "S1": 642.0, "G": 923.0, "cd": 3.16}, {"id": "6621", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6623", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6645", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6650", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6655", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6660", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "6665", "st": null, "sl": null, "W": 170.0, "C": 630.0, "S1": 634.0, "G": 923.0, "cd": 3.16}, {"id": "4621Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4623Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4645Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4650Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4655Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4660Ｍ", "st": null, "sl": null, "W": 170.0, "C": 479.0, "S1": 764.0, "G": 923.0, "cd": 3.21}, {"id": "4821Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4823Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4845Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4850Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4855Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "4860Ｍ", "st": null, "sl": null, "W": 170.0, "C": 493.0, "S1": 751.0, "G": 923.0, "cd": 3.21}, {"id": "5121Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5123Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5145Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5150Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5155Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5160Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5165Ｍ", "st": null, "sl": null, "W": 170.0, "C": 516.0, "S1": 733.0, "G": 923.0, "cd": 3.21}, {"id": "5321Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5323Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5345Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5350Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5355Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5360Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5365Ｍ", "st": null, "sl": null, "W": 170.0, "C": 532.0, "S1": 720.0, "G": 923.0, "cd": 3.21}, {"id": "5421Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5423Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5445Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5450Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5455Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5460Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5465Ｍ", "st": null, "sl": null, "W": 170.0, "C": 540.0, "S1": 715.0, "G": 923.0, "cd": 3.21}, {"id": "5721Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5723Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5745Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5750Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5755Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5760Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}, {"id": "5765Ｍ", "st": null, "sl": null, "W": 170.0, "C": 567.0, "S1": 692.0, "G": 923.0, "cd": 3.21}]}};
+
+// ── 定数 ──
+const AIR_CONTENT = { sandstone:4.5, limestone:4.5, hs30:3.0, hs45:4.5 };
+const GRAVEL_DENSITY = { sandstone:2.68, limestone:2.7, hs30:2.7, hs45:2.7 };
+const SAND_DENSITY = 2.6;
+const SEASON_LABELS = { standard:"標準期", summer:"夏期", winter:"冬期" };
+const TYPE_LABELS   = { sandstone:"砂岩", limestone:"石灰", hs30:"高強度3.0%", hs45:"高強度4.5%" };
+const SEASON_COLORS = { standard:"#2d4e80", summer:"#c05510", winter:"#1a5a90" };
+const TYPE_ACTIVE   = { sandstone:"active-sand", limestone:"active-lime", hs30:"active-hs30", hs45:"active-hs45" };
+
+// ── Supabase設定（REST APIへ直接アクセス。supabase-jsは使用しない） ──
+const SUPABASE_URL = "https://bpjzldlabuworerjspyv.supabase.co";
+const SUPABASE_KEY = "sb_publishable_4hIoNkRfxQlk8GioUQDV-A_KPjCQtBQ";
+
+// XMLHttpRequestでPostgREST APIを呼び出すヘルパー
+// supabase-js (fetchベース) はDocumentsアプリのサンドボックス環境で
+// postMessage経由のDataCloneErrorを起こすため、XHRで直接呼び出す
+function sbRequest(method, path, body, extraHeaders) {
+  return new Promise((resolve, reject) => {
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, SUPABASE_URL + path, true);
+      xhr.setRequestHeader("apikey", SUPABASE_KEY);
+      xhr.setRequestHeader("Authorization", "Bearer " + SUPABASE_KEY);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      if (extraHeaders) {
+        for (const k in extraHeaders) xhr.setRequestHeader(k, extraHeaders[k]);
+      }
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState !== 4) return;
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (!xhr.responseText) { resolve(null); return; }
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch (e) {
+            resolve(null);
+          }
+        } else {
+          let msg = "HTTP " + xhr.status;
+          try {
+            const errBody = JSON.parse(xhr.responseText);
+            msg += ": " + (errBody.message || errBody.error || errBody.hint || xhr.responseText);
+          } catch (e) {
+            if (xhr.responseText) msg += ": " + xhr.responseText;
+          }
+          reject(new Error(msg));
+        }
+      };
+      xhr.onerror = function () {
+        reject(new Error("ネットワークエラー（接続を確認してください）"));
+      };
+      xhr.send(body ? JSON.stringify(body) : null);
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+// ── 状態 ──
+let state = { season:"standard", mixType:"sandstone", mixID:"", S2:null, V3:null };
+let meters = [];
+let records = [];
+let currentDetailId = null;
+let isOnline = true;
+
+function showSyncError(show, detail) {
+  isOnline = !show;
+  const el = document.getElementById("sync-indicator");
+  el.style.display = show ? "block" : "none";
+  if(show && detail) {
+    el.innerHTML = "⚠ 同期エラー: " + detail + "（データは端末内のみ）";
+  } else if(show) {
+    el.innerHTML = "⚠ オフライン中（データは端末内に保存されます）";
+  }
+}
+
+function errDetail(e) {
+  try {
+    if(!e) return "不明なエラー";
+    if(typeof e === "string") return e;
+    const parts = [];
+    if(e.name) parts.push(e.name);
+    if(e.message) parts.push(e.message);
+    if(e.status) parts.push("status:"+e.status);
+    if(e.code) parts.push("code:"+e.code);
+    if(e.error_description) parts.push(e.error_description);
+    if(e.hint) parts.push("hint:"+e.hint);
+    if(e.details) parts.push("details:"+e.details);
+    if(parts.length === 0) {
+      try { return JSON.stringify(e); } catch(_) { return String(e); }
+    }
+    return parts.join(" / ");
+  } catch(_) {
+    return "エラー詳細取得失敗";
+  }
+}
+
+function safeLog(label, e) {
+  // console.error に生のオブジェクトを渡すと DataCloneError になる
+  // 環境があるため、必ず文字列化してから渡す
+  try { console.error(label + ": " + errDetail(e)); } catch(_) {}
+}
+
+// ── キャッシュ（計算済み結果を保持） ──
+let _calcTimer = null;
+let _lastCalcKey = "";
+
+// ── 初期化 ──
+async function init() {
+  updateHeader("standard");
+  rebuildMixSelect();
+
+  // Supabaseからデータ読込
+  await Promise.all([loadMeters(), loadRecords()]);
+  updateMeterSelect();
+  renderHistory();
+
+  // 定期的に再読込（他端末の更新を反映）。
+  // ※リアルタイム(WebSocket)はサンドボックス環境で動作しないため使用しない。
+  setInterval(async () => {
+    await loadMeters();
+    updateMeterSelect();
+    if(document.getElementById("meter-modal").classList.contains("open")) renderMeterList();
+
+    await loadRecords();
+    const historyTab = document.getElementById("tab-history");
+    if(historyTab && historyTab.classList.contains("active")) renderHistory();
+  }, 15000); // 15秒ごと
+}
+
+// ── データ読込 ──
+async function loadMeters() {
+  try {
+    const data = await sbRequest("GET", "/rest/v1/air_meters?select=*&order=created_at");
+    meters = (data||[]).map(m=>({ id:m.id, name:m.name, s2:Number(m.s2), v3:Number(m.v3) }));
+    showSyncError(false);
+  } catch(e) {
+    safeLog("loadMeters error", e);
+    showSyncError(true, "meters: " + errDetail(e));
+  }
+}
+
+async function loadRecords() {
+  try {
+    const data = await sbRequest("GET", "/rest/v1/sample_records?select=*&order=record_date.desc");
+    records = (data||[]).map(r=>({
+      id: r.id,
+      date: r.record_date,
+      season: r.season,
+      mixType: r.mix_type,
+      mixID: r.mix_id,
+      meterName: r.meter_name,
+      S1: Number(r.s1),
+      air: Number(r.air_percent),
+      W1: Number(r.w1),
+      Wd: Number(r.w_doken),
+      Wf: Number(r.w_fukui),
+      Wa: Number(r.w_average),
+      judgment: r.judgment,
+      note: r.note || ""
+    }));
+    showSyncError(false);
+  } catch(e) {
+    safeLog("loadRecords error", e);
+    showSyncError(true, "records: " + errDetail(e));
+  }
+}
+
+// ── ヘッダー更新（最小限のDOM操作） ──
+function updateHeader(s) {
+  const hdr = document.getElementById("calc-header");
+  const cls = {standard:"standard",summer:"summer",winter:"winter"};
+  hdr.className = "header header-"+cls[s];
+  document.getElementById("header-title").textContent = "単位水量推定（"+SEASON_LABELS[s]+"）";
+  document.getElementById("header-sub").textContent   = "エアーメータ法（"+SEASON_LABELS[s]+"配合）";
+  document.getElementById("save-btn").style.background = SEASON_COLORS[s];
+}
+
+// ── 季節切替 ──
+function setSeason(s, btn) {
+  if(state.season === s) return; // 同じ季節なら何もしない
+  state.season = s;
+  document.querySelectorAll(".season-chip").forEach(c=>{
+    c.classList.remove("active-std","active-sum","active-win");
+  });
+  const cls = {standard:"active-std",summer:"active-sum",winter:"active-win"};
+  if(btn) btn.classList.add(cls[s]);
+  updateHeader(s);
+  rebuildMixSelect();
+}
+
+// ── 配合種別切替 ──
+function setMixType(t, btn) {
+  if(state.mixType === t) return; // 同じ種別なら何もしない
+  state.mixType = t;
+  document.querySelectorAll("#mix-type-chips .chip").forEach(c=>{
+    c.classList.remove("active-sand","active-lime","active-hs30","active-hs45");
+  });
+  if(btn) btn.classList.add(TYPE_ACTIVE[t]);
+  rebuildMixSelect();
+}
+
+// ── 配合№プルダウン再構築（DocumentFragment使用で高速化） ──
+function rebuildMixSelect() {
+  const sel = document.getElementById("mix-id-select");
+  const mixes = MIX_DB[state.season][state.mixType] || [];
+  
+  // DocumentFragmentで一括生成（個別appendより高速）
+  const frag = document.createDocumentFragment();
+  const pref = ["3018","3018SPC","4621","4645"];
+  let defaultVal = mixes.length > 0 ? mixes[0].id : "";
+  
+  mixes.forEach(m=>{
+    const opt = document.createElement("option");
+    opt.value = m.id;
+    opt.textContent = m.id + (m.st ? "　Fc:"+m.st : "") + (m.sl ? "　Sl:"+m.sl : "");
+    frag.appendChild(opt);
+    if(pref.includes(m.id)) defaultVal = m.id;
+  });
+  
+  sel.innerHTML = "";
+  sel.appendChild(frag);
+  sel.value = defaultVal;
+  state.mixID = sel.value;
+  updateStdCard();
+  calcDebounced();
+}
+
+function onMixChange() {
+  state.mixID = document.getElementById("mix-id-select").value;
+  updateStdCard();
+  calcDebounced();
+}
+
+// ── デバウンス（入力中の過剰な再計算を防ぐ） ──
+function calcDebounced() {
+  if(_calcTimer) clearTimeout(_calcTimer);
+  _calcTimer = setTimeout(calc, 80);
+}
+
+// ── 標準配合値表示 ──
+let _lastMixID = "";
+function updateStdCard() {
+  const mix = getMix();
+  if(!mix) return;
+  const key = state.season+"|"+state.mixType+"|"+state.mixID;
+  if(key === _lastMixID) return; // 変化なければスキップ
+  _lastMixID = key;
+  document.getElementById("sv-W").textContent = mix.W;
+  document.getElementById("sv-C").textContent = mix.C;
+  document.getElementById("sv-S").textContent = mix.S1;
+  document.getElementById("sv-G").textContent = mix.G;
+  document.getElementById("sv-air").textContent = "空気量: "+AIR_CONTENT[state.mixType]+"%";
+  document.getElementById("sv-cd").textContent  = "C密度: "+mix.cd+" g/cm³";
+}
+
+// ── getMix キャッシュ ──
+let _mixCache = {};
+function getMix() {
+  const cacheKey = state.season+"|"+state.mixType+"|"+state.mixID;
+  if(_mixCache[cacheKey]) return _mixCache[cacheKey];
+  const mixes = MIX_DB[state.season][state.mixType] || [];
+  const mix = mixes.find(m=>m.id === state.mixID) || null;
+  if(mix) _mixCache[cacheKey] = mix;
+  return mix;
+}
+
+// ── エアーメーター ──
+function onMeterChange() {
+  const id = document.getElementById("meter-select").value;
+  const m = meters.find(m=>m.id===id);
+  if(m){ state.S2 = m.s2; state.V3 = m.v3; } else { state.S2=null; state.V3=null; }
+  calc();
+}
+
+function updateMeterSelect() {
+  const sel = document.getElementById("meter-select");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— 選択してください —</option>' +
+    meters.map(m=>`<option value="${m.id}">${m.name}　S₂:${m.s2}　V₃:${m.v3}</option>`).join("");
+  if(cur) sel.value = cur;
+  onMeterChange();
+}
+
+function saveMeterData() { /* Supabase経由のため不要（互換性のため残置） */ }
+
+async function openMeterMgr() {
+  await loadMeters();
+  renderMeterList();
+  updateMeterSelect();
+  document.getElementById("meter-modal").classList.add("open");
+}
+function closeMeterMgr() { document.getElementById("meter-modal").classList.remove("open"); }
+
+function renderMeterList() {
+  const el = document.getElementById("meter-list");
+  if(meters.length === 0) { el.innerHTML = '<p style="color:#8e8e93;text-align:center;padding:16px;">登録されていません</p>'; return; }
+  el.innerHTML = meters.map(m=>`
+    <div class="meter-item">
+      <div class="meter-info">
+        <div class="name">${m.name}</div>
+        <div class="vals">S₂: ${m.s2} kg　V₃: ${m.v3} L</div>
+      </div>
+      <div class="meter-actions">
+        <button class="icon-btn" onclick="editMeter('${m.id}')">✏️</button>
+        <button class="btn-danger" onclick="deleteMeter('${m.id}')">削除</button>
+      </div>
+    </div>`).join("");
+}
+
+function openAddMeter() {
+  document.getElementById("meter-edit-id").value = "";
+  document.getElementById("meter-edit-name").value = "";
+  document.getElementById("meter-edit-s2").value = "";
+  document.getElementById("meter-edit-v3").value = "";
+  document.getElementById("meter-edit-title").textContent = "エアーメーター登録";
+  document.getElementById("meter-edit-modal").classList.add("open");
+}
+
+function editMeter(id) {
+  const m = meters.find(m=>m.id===id);
+  if(!m) return;
+  document.getElementById("meter-edit-id").value = id;
+  document.getElementById("meter-edit-name").value = m.name;
+  document.getElementById("meter-edit-s2").value = m.s2;
+  document.getElementById("meter-edit-v3").value = m.v3;
+  document.getElementById("meter-edit-title").textContent = "エアーメーター編集";
+  document.getElementById("meter-edit-modal").classList.add("open");
+}
+
+function closeMeterEdit() { document.getElementById("meter-edit-modal").classList.remove("open"); }
+
+async function saveMeter() {
+  const id = document.getElementById("meter-edit-id").value;
+  const name = document.getElementById("meter-edit-name").value.trim();
+  const s2 = parseFloat(document.getElementById("meter-edit-s2").value);
+  const v3 = parseFloat(document.getElementById("meter-edit-v3").value);
+  if(!name || isNaN(s2) || isNaN(v3)) { alert("すべての項目を入力してください"); return; }
+
+  try {
+    if(id) {
+      await sbRequest("PATCH", "/rest/v1/air_meters?id=eq." + encodeURIComponent(id), { name, s2, v3 }, { "Prefer": "return=minimal" });
+    } else {
+      await sbRequest("POST", "/rest/v1/air_meters", { name, s2, v3 }, { "Prefer": "return=minimal" });
+    }
+    await loadMeters();
+    closeMeterEdit();
+    renderMeterList();
+    updateMeterSelect();
+  } catch(e) {
+    safeLog("saveMeter error", e);
+    alert("保存に失敗しました: " + errDetail(e));
+  }
+}
+
+async function deleteMeter(id) {
+  if(!confirm("削除しますか？")) return;
+  try {
+    await sbRequest("DELETE", "/rest/v1/air_meters?id=eq." + encodeURIComponent(id), null, { "Prefer": "return=minimal" });
+    await loadMeters();
+    renderMeterList();
+    updateMeterSelect();
+  } catch(e) {
+    safeLog("deleteMeter error", e);
+    alert("削除に失敗しました: " + errDetail(e));
+  }
+}
+
+// ── 計算 ──
+function calc() {
+  const mix = getMix();
+  const S1 = parseFloat(document.getElementById("in-S1").value);
+  const air = parseFloat(document.getElementById("in-air").value);
+  if(!mix || isNaN(S1) || isNaN(air) || state.S2===null || state.V3===null) {
+    ["res-doken","res-fukui","res-avg"].forEach(id=>document.getElementById(id).textContent="—");
+    ["badge-doken","badge-fukui","badge-avg"].forEach(id=>document.getElementById(id).innerHTML="");
+    ["diff-doken","diff-fukui"].forEach(id=>document.getElementById(id).textContent="");
+    document.getElementById("rho-text").textContent="";
+    document.getElementById("save-btn").disabled=true;
+    return;
+  }
+  const airBase = AIR_CONTENT[state.mixType];
+  const alpha = mix.C * 0.001;
+  const Mc = mix.W + mix.C + mix.S1 + mix.G;
+
+  // 土研法
+  const rho1 = Math.round(Mc / (1 - (airBase + alpha) * 0.01));
+  const denom2 = state.V3 - state.V3 * air * 0.01;
+  const rho2 = Math.round((S1 - state.S2) * 1000 / denom2);
+  const Wd = Math.round((mix.W + (rho1 - rho2) * 0.7) * 10) / 10;
+
+  // 福井式
+  const Mo = mix.C + mix.S1 + mix.G;
+  const rho1f = (mix.W + Mo) / (1 - airBase * 0.01);
+  const rho2f = (S1 - state.S2) * 1000 / denom2;
+  const Wf = Math.round((mix.W + (rho1f - rho2f) * 0.7) * 10) / 10;
+
+  // 平均
+  const Wa = Math.round((Wd + Wf) / 2 * 10) / 10;
+
+  // 表示
+  document.getElementById("res-doken").textContent = Wd.toFixed(1) + " kg/m³";
+  document.getElementById("res-fukui").textContent = Wf.toFixed(1) + " kg/m³";
+  document.getElementById("res-avg").textContent   = Wa.toFixed(1) + " kg/m³";
+  document.getElementById("rho-text").textContent  = `ρ₁ = ${rho1} kg/m³　ρ₂ = ${rho2} kg/m³`;
+
+  showJudgment("badge-doken","diff-doken", Wd, mix.W);
+  showJudgment("badge-fukui","diff-fukui", Wf, mix.W);
+  showJudgmentAvg("badge-avg", Wa, mix.W);
+
+  document.getElementById("save-btn").disabled = false;
+}
+
+function showJudgment(badgeId, diffId, W, W1) {
+  const diff = W - W1;
+  const pass = Math.abs(diff) <= 15;
+  const el = document.getElementById(badgeId);
+  el.innerHTML = `<span class="badge ${pass?'pass':'fail'}">${pass?'合格':'不合格'}</span>`;
+  const de = document.getElementById(diffId);
+  const sign = diff >= 0 ? "+" : "";
+  de.textContent = `差分: ${sign}${diff.toFixed(1)} kg/m³　（許容: ±15 kg/m³）`;
+  de.style.color = pass ? "#1a8a3a" : "#c0392b";
+}
+
+function showJudgmentAvg(badgeId, W, W1) {
+  const diff = W - W1;
+  const pass = Math.abs(diff) <= 15;
+  document.getElementById(badgeId).innerHTML = `
+    <span style="display:inline-flex;align-items:center;gap:5px;font-size:15px;font-weight:700;color:${pass?'#1a8a3a':'#c0392b'}">
+      <span style="width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block"></span>
+      ${pass?'合格':'不合格'}
+    </span>`;
+}
+
+// ── 保存 ──
+function openSaveModal() {
+  const mix = getMix();
+  const S1 = parseFloat(document.getElementById("in-S1").value);
+  const air = parseFloat(document.getElementById("in-air").value);
+  if(!mix || isNaN(S1) || isNaN(air)) return;
+
+  // 日時
+  const now = new Date();
+  const pad = n => String(n).padStart(2,"0");
+  document.getElementById("save-date").value =
+    `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  // 計算結果サマリ
+  const Wd = parseFloat(document.getElementById("res-doken").textContent);
+  const Wf = parseFloat(document.getElementById("res-fukui").textContent);
+  const Wa = parseFloat(document.getElementById("res-avg").textContent);
+  const meterName = (() => {
+    const sel = document.getElementById("meter-select");
+    const m = meters.find(m=>m.id===sel.value);
+    return m ? m.name : "未選択";
+  })();
+  const pass = Math.abs(Wa - mix.W) <= 15;
+
+  document.getElementById("save-info").innerHTML = `
+    <div class="form-info-row"><span class="lbl">季節</span><span class="val">${SEASON_LABELS[state.season]}</span></div>
+    <div class="form-info-row"><span class="lbl">配合種別</span><span class="val">${TYPE_LABELS[state.mixType]}</span></div>
+    <div class="form-info-row"><span class="lbl">配合№</span><span class="val">${state.mixID}</span></div>
+    <div class="form-info-row"><span class="lbl">エアーメーター</span><span class="val">${meterName}</span></div>
+    <div class="form-info-row"><span class="lbl">S₁</span><span class="val">${S1} kg</span></div>
+    <div class="form-info-row"><span class="lbl">空気量</span><span class="val">${air} %</span></div>
+    <div class="form-info-row"><span class="lbl">土研法</span><span class="val">${Wd.toFixed(1)} kg/m³</span></div>
+    <div class="form-info-row"><span class="lbl">福井式</span><span class="val">${Wf.toFixed(1)} kg/m³</span></div>
+    <div class="form-info-row"><span class="lbl">平均値</span><span class="val" style="font-weight:700">${Wa.toFixed(1)} kg/m³</span></div>
+    <div class="form-info-row"><span class="lbl">判定</span><span class="val" style="color:${pass?'#1a8a3a':'#c0392b'};font-weight:700">${pass?'合格':'不合格'}</span></div>`;
+
+  document.getElementById("save-note").value = "";
+  document.getElementById("save-modal").classList.add("open");
+}
+
+function closeSaveModal() { document.getElementById("save-modal").classList.remove("open"); }
+
+async function saveRecord() {
+  const mix = getMix();
+  const S1 = parseFloat(document.getElementById("in-S1").value);
+  const air = parseFloat(document.getElementById("in-air").value);
+  const Wd = parseFloat(document.getElementById("res-doken").textContent);
+  const Wf = parseFloat(document.getElementById("res-fukui").textContent);
+  const Wa = parseFloat(document.getElementById("res-avg").textContent);
+  const meterName = (() => {
+    const sel = document.getElementById("meter-select");
+    const m = meters.find(m=>m.id===sel.value);
+    return m ? m.name : "未選択";
+  })();
+  const pass = Math.abs(Wa - mix.W) <= 15;
+  const dateVal = document.getElementById("save-date").value;
+  const note = document.getElementById("save-note").value;
+
+  const payload = {
+    record_date: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString(),
+    season: SEASON_LABELS[state.season],
+    mix_type: TYPE_LABELS[state.mixType],
+    mix_id: state.mixID,
+    meter_name: meterName,
+    s1: S1,
+    air_percent: air,
+    w1: mix.W,
+    w_doken: Wd,
+    w_fukui: Wf,
+    w_average: Wa,
+    judgment: pass ? "合格" : "不合格",
+    note: note
+  };
+
+  try {
+    await sbRequest("POST", "/rest/v1/sample_records", payload, { "Prefer": "return=minimal" });
+    await loadRecords();
+    closeSaveModal();
+    renderHistory();
+    alert("保存しました");
+  } catch(e) {
+    safeLog("saveRecord error", e);
+    alert("保存に失敗しました: " + errDetail(e));
+  }
+}
+
+// ── 履歴 ──
+function renderHistory() {
+  const el = document.getElementById("history-list");
+  if(records.length===0) {
+    el.innerHTML = `<div class="empty-state">
+      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      <p>採取記録がありません</p>
+      <p style="margin-top:6px;font-size:12px">計算結果の「採取記録を保存」から記録できます</p>
+    </div>`;
+    return;
+  }
+  el.innerHTML = records.map(r=>{
+    const d = new Date(r.date);
+    const df = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+    const color = r.judgment==="合格"?"#1a8a3a":"#c0392b";
+    return `<div class="history-item" onclick="openDetail('${r.id}')">
+      <div class="history-left">
+        <div class="date">${df}</div>
+        <div class="mix-info"><span class="season-badge">${r.season}</span>${r.mixType} ${r.mixID}</div>
+      </div>
+      <div class="history-right">
+        <div class="wval">${r.Wa.toFixed(1)}</div>
+        <div class="hjudge" style="color:${color}">${r.judgment}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function openDetail(id) {
+  const r = records.find(r=>r.id===id);
+  if(!r) return;
+  currentDetailId = id;
+  const d = new Date(r.date);
+  const df = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  const color = r.judgment==="合格"?"#1a8a3a":"#c0392b";
+  document.getElementById("detail-content").innerHTML = `
+    <div class="form-info">
+      <div class="form-info-row"><span class="lbl">採取日時</span><span class="val">${df}</span></div>
+      <div class="form-info-row"><span class="lbl">季節</span><span class="val">${r.season}</span></div>
+      <div class="form-info-row"><span class="lbl">配合種別</span><span class="val">${r.mixType}</span></div>
+      <div class="form-info-row"><span class="lbl">配合№</span><span class="val">${r.mixID}</span></div>
+      <div class="form-info-row"><span class="lbl">エアーメーター</span><span class="val">${r.meterName}</span></div>
+      <div class="form-info-row"><span class="lbl">S₁</span><span class="val">${r.S1} kg</span></div>
+      <div class="form-info-row"><span class="lbl">実測空気量</span><span class="val">${r.air} %</span></div>
+      <div class="form-info-row"><span class="lbl">標準単位水量 W₁</span><span class="val">${r.W1} kg/m³</span></div>
+      <div class="form-info-row"><span class="lbl">土研法</span><span class="val">${r.Wd.toFixed(1)} kg/m³</span></div>
+      <div class="form-info-row"><span class="lbl">福井式</span><span class="val">${r.Wf.toFixed(1)} kg/m³</span></div>
+      <div class="form-info-row"><span class="lbl">平均値</span><span class="val" style="font-weight:700">${r.Wa.toFixed(1)} kg/m³</span></div>
+      <div class="form-info-row"><span class="lbl">判定</span><span class="val" style="color:${color};font-weight:700">${r.judgment}</span></div>
+      ${r.note ? `<div class="form-info-row"><span class="lbl">メモ</span><span class="val">${r.note}</span></div>` : ""}
+    </div>`;
+  document.getElementById("detail-modal").classList.add("open");
+}
+
+function closeDetail() { document.getElementById("detail-modal").classList.remove("open"); }
+
+async function deleteRecord() {
+  if(!confirm("この記録を削除しますか？")) return;
+  try {
+    await sbRequest("DELETE", "/rest/v1/sample_records?id=eq." + encodeURIComponent(currentDetailId), null, { "Prefer": "return=minimal" });
+    await loadRecords();
+    closeDetail();
+    renderHistory();
+  } catch(e) {
+    safeLog("deleteRecord error", e);
+    alert("削除に失敗しました: " + errDetail(e));
+  }
+}
+
+// ── タブ切替 ──
+async function switchTab(name, btn) {
+  document.querySelectorAll(".tab-content").forEach(el=>el.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(el=>el.classList.remove("active"));
+  document.getElementById("tab-"+name).classList.add("active");
+  btn.classList.add("active");
+  if(name==="history") {
+    await loadRecords();
+    renderHistory();
+  }
+}
+
+// モーダル外タップで閉じる
+document.querySelectorAll(".modal-overlay").forEach(overlay=>{
+  overlay.addEventListener("click", e=>{ if(e.target===overlay) overlay.classList.remove("open"); });
+});
+
+init();
+</script>
+</body>
+</html>
